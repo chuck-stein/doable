@@ -1,4 +1,4 @@
-package io.chuckstein.doable
+package io.chuckstein.doable.tracker
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring.DampingRatioNoBouncy
@@ -81,20 +81,12 @@ import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.common.isEmpty
 import io.chuckstein.doable.common.resolveText
 import io.chuckstein.doable.common.toTextModel
-import io.chuckstein.doable.tracker.CheckableItemMetadataState
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.TaskMetadataState
-import io.chuckstein.doable.tracker.CheckableItemState
-import io.chuckstein.doable.tracker.DayTrackerState
-import io.chuckstein.doable.tracker.HabitsTabState
-import io.chuckstein.doable.tracker.JournalTabState
-import io.chuckstein.doable.tracker.TasksTabState
-import io.chuckstein.doable.tracker.TrackerEvent
 import io.chuckstein.doable.tracker.TrackerEvent.AddTask
 import io.chuckstein.doable.tracker.TrackerEvent.AddTrackedHabit
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateJournalNote
-import io.chuckstein.doable.tracker.TrackerUiState
 import io.telereso.kmp.core.icons.resources.Add
 import io.telereso.kmp.core.icons.resources.ChevronLeft
 import io.telereso.kmp.core.icons.resources.ChevronRight
