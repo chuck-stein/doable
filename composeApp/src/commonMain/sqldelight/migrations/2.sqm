@@ -1,0 +1,16 @@
+import kotlin.Boolean;
+import io.chuckstein.doable.database.Habit;
+
+CREATE TABLE Habit_new (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL, -- no longer UNIQUE
+  currentlyBuilding INTEGER AS Boolean NOT NULL DEFAULT 0,
+  currentlyTracking INTEGER AS Boolean NOT NULL DEFAULT 1
+);
+
+INSERT INTO Habit_new (id, name, currentlyBuilding, currentlyTracking)
+SELECT id, name, currentlyBuilding, currentlyTracking FROM Habit;
+
+DROP TABLE Habit;
+
+ALTER TABLE Habit_new RENAME TO Habit;

@@ -1,0 +1,32 @@
+<resources>
+
+    <!-- Global UI -->
+    <string name="tasks">TASKS</string>
+    <string name="journal">JOURNAL</string>
+    <string name="habits">HABITS</string>
+    <string name="previous_day_cd">previous day</string>
+    <string name="next_day_cd">next day</string>
+    <string name="failed_to_load_error">Oops! It looks like we failed to load your data.</string>
+    <string name="failed_to_save_error">Oops! It looks like we failed to save your most recent data.</string>
+
+    <!-- Tasks Tab -->
+    <string name="add_task">Add task</string>
+    <string name="delete_task_cd">delete task</string>
+    <string name="show_older_tasks">SHOW OLDER TASKS</string>
+    <string name="hide_older_tasks">HIDE OLDER TASKS</string>
+
+    <!-- Journal Tab -->
+    <string name="what_did_you_do_today">What did you do today?</string>
+    <string name="hide_task_cd">hide task</string>
+    <string name="hide_habit_cd">hide habit</string>
+
+    <!-- Habits Tab -->
+    <string name="add_habit">Add habit</string>
+    <string name="delete_habit_cd">delete habit</string>
+    <string name="stop_tracking_habit_cd">stop tracking habit</string>
+    <string name="resume_tracking_habit_cd">resume tracking habit</string>
+    <string name="no_tracked_habits_message">No habits tracked today.</string>
+    <string name="show_untracked_habits">SHOW UNTRACKED HABITS</string>
+    <string name="hide_untracked_habits">HIDE UNTRACKED HABITS</string>
+
+</resources>

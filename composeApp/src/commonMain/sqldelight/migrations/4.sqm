@@ -1,0 +1,17 @@
+import kotlin.Boolean;
+import kotlinx.datetime.LocalDate;
+import io.chuckstein.doable.database.JournalEntry;
+
+CREATE TABLE JournalEntry_new (
+  date TEXT AS LocalDate NOT NULL PRIMARY KEY,
+  note TEXT NOT NULL DEFAULT '',
+  isStarred INTEGER AS Boolean NOT NULL DEFAULT 0,
+  habitsCalculated INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+INSERT INTO JournalEntry_new (date, note, isStarred, habitsCalculated)
+SELECT date, note, isStarred, 0 FROM JournalEntry;
+
+DROP TABLE JournalEntry;
+
+ALTER TABLE JournalEntry_new RENAME TO JournalEntry;

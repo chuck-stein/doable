@@ -1,0 +1,22 @@
+import kotlin.Boolean;
+import kotlinx.datetime.LocalDate;
+import io.chuckstein.doable.database.JournalEntry;
+import io.chuckstein.doable.database.HabitStatus;
+import io.chuckstein.doable.tracker.HabitFrequency;
+import io.chuckstein.doable.tracker.HabitTrend;
+
+CREATE TABLE HabitStatus_new (
+  habitId INTEGER NOT NULL REFERENCES Habit(id),
+  date TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
+  frequency TEXT AS HabitFrequency CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'NONE')) NOT NULL,
+  trend TEXT AS HabitTrend CHECK (trend IN ('UP', 'DOWN', 'NEUTRAL', 'NONE')) NOT NULL,
+  wasBuilding INTEGER AS Boolean NOT NULL,
+  PRIMARY KEY (habitId, date)
+);
+
+INSERT INTO HabitStatus_new (habitId, date, frequency, trend, wasBuilding)
+SELECT habitId, date, frequency, 'NONE', wasBuilding FROM HabitStatus;
+
+DROP TABLE HabitStatus;
+
+ALTER TABLE HabitStatus_new RENAME TO HabitStatus;

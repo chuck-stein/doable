@@ -1,0 +1,204 @@
+import kotlin.Boolean;
+import kotlinx.datetime.LocalDate;
+import io.chuckstein.doable.tracker.HabitFrequency;
+import io.chuckstein.doable.tracker.HabitTrend;
+
+selectLastInsertRowId:
+SELECT last_insert_rowid();
+
+---- Journal Entry ----
+
+CREATE TABLE JournalEntry (
+  date TEXT AS LocalDate NOT NULL PRIMARY KEY,
+  note TEXT NOT NULL DEFAULT '',
+  isStarred INTEGER AS Boolean NOT NULL DEFAULT 0,
+  habitsCalculated INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+insertJournalEntry:
+INSERT INTO JournalEntry(date)
+VALUES (:date);
+
+updateJournalEntry:
+UPDATE JournalEntry
+SET note =:note, isStarred =:starred, habitsCalculated =:habitsCalculated
+WHERE date =:date;
+
+setJournalEntryHabitsCalculatedTrue:
+UPDATE JournalEntry
+SET habitsCalculated = 1
+WHERE date =:date;
+
+selectJournalEntryForDate:
+SELECT * FROM JournalEntry WHERE date =:date;
+
+selectFirstJournalEntry:
+SELECT * FROM JournalEntry ORDER BY date LIMIT 1;
+
+selectLatestJournalEntry:
+SELECT * FROM JournalEntry ORDER BY date DESC LIMIT 1;
+
+selectJournalDatesWithoutHabitStatuses:
+SELECT date FROM JournalEntry WHERE habitsCalculated = 0 ORDER BY date;
+
+---- Task ----
+
+CREATE TABLE Task (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  dateCreated TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
+  dateCompleted TEXT AS LocalDate REFERENCES JournalEntry(date) DEFAULT NULL,
+  priority TEXT CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+  deadline TEXT AS LocalDate
+);
+
+insertTask:
+INSERT INTO Task(name, dateCreated, priority, deadline)
+VALUES (:name,:dateCreated,:priority,:deadline);
+
+updateTask:
+UPDATE Task
+SET name =:name, dateCompleted =:dateCompleted, priority =:priority, deadline =:deadline
+WHERE id =:id;
+
+deleteTask:
+DELETE FROM Task WHERE id =:id;
+
+selectTask:
+SELECT * FROM Task WHERE id =:id;
+
+selectAllTasks:
+SELECT * FROM Task;
+
+
+---- Habit ----
+
+CREATE TABLE Habit (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  currentlyBuilding INTEGER AS Boolean NOT NULL DEFAULT 0,
+  currentlyTracking INTEGER AS Boolean NOT NULL DEFAULT 1
+);
+
+insertHabit:
+INSERT INTO Habit(name)
+VALUES (:name);
+
+updateHabitName:
+UPDATE Habit
+SET name =:name
+WHERE id =:id;
+
+updateHabitIsTracked:
+UPDATE Habit
+SET currentlyTracking =:currentlyTracking
+WHERE id =:id;
+
+deleteHabit:
+DELETE FROM Habit WHERE id =:id;
+
+selectHabit:
+SELECT * FROM Habit WHERE id =:id;
+
+selectAllHabits:
+SELECT * FROM Habit;
+
+
+---- Habit Performed ----
+
+CREATE TABLE HabitPerformed (
+  habitId INTEGER NOT NULL REFERENCES Habit(id),
+  date TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
+  PRIMARY KEY (habitId, date)
+);
+
+insertHabitPerformed:
+INSERT INTO HabitPerformed(habitId, date)
+VALUES (:habitId,:date);
+
+deleteHabitPerformed:
+DELETE FROM HabitPerformed WHERE habitId =:habitId AND date =:date;
+
+selectAllHabitIdsPerformedOnDate:
+SELECT habitId FROM HabitPerformed
+WHERE date =:date;
+
+selectNumTimesHabitPerformedDuringDates:
+SELECT COUNT(*) FROM HabitPerformed
+WHERE habitId = :habitId
+AND date IN :dates;
+
+
+---- Habit Status ----
+
+CREATE TABLE HabitStatus (
+  habitId INTEGER NOT NULL REFERENCES Habit(id),
+  date TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
+  frequency TEXT AS HabitFrequency CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'NONE')) NOT NULL,
+  trend TEXT AS HabitTrend CHECK (trend IN ('UP', 'DOWN', 'NEUTRAL', 'NONE')) NOT NULL,
+  wasBuilding INTEGER AS Boolean NOT NULL,
+  PRIMARY KEY (habitId, date)
+);
+
+insertHabitStatus:
+INSERT INTO HabitStatus(habitId, date, frequency, trend, wasBuilding)
+VALUES (:habitId,:date,:frequency, :trend, :wasBuilding);
+
+habitStatusDetails:
+SELECT hs.*, h.name FROM HabitStatus hs
+JOIN Habit h ON hs.habitId = h.id
+WHERE date =:date;
+
+selectAllHabitStatuses:
+SELECT * FROM HabitStatus;
+
+doesAnyHabitStatusExistForHabit:
+SELECT EXISTS(SELECT 1 FROM HabitStatus WHERE habitId =:habitId LIMIT 1) AS Boolean;
+
+
+---- Tag ----
+
+CREATE TABLE Tag (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  color TEXT UNIQUE CHECK (color IN ('RED', 'BLUE', 'YELLOW', 'GREEN', 'ORANGE', 'PURPLE', 'WHITE', 'BLACK', 'PINK', 'BROWN'))
+);
+
+insertTag:
+INSERT INTO Tag(name, color)
+VALUES (:name,:color);
+
+updateTag:
+UPDATE Tag
+SET name =:name, color =:color
+WHERE id =:id;
+
+deleteTag:
+DELETE FROM Tag WHERE id =:id;
+
+
+CREATE TABLE TaskHasTag (
+  taskId INTEGER NOT NULL REFERENCES Task(id),
+  tagId INTEGER NOT NULL REFERENCES Tag(id),
+  PRIMARY KEY (taskId, tagId)
+);
+
+insertTaskHasTag:
+INSERT INTO TaskHasTag(taskId, tagId)
+VALUES (:taskId,:tagId);
+
+deleteTaskHasTag:
+DELETE FROM TaskHasTag WHERE taskId =:taskId AND tagId =:tagId;
+
+CREATE TABLE HabitHasTag (
+  habitId INTEGER NOT NULL REFERENCES Habit(id),
+  tagId INTEGER NOT NULL REFERENCES Tag(id),
+  PRIMARY KEY (habitId, tagId)
+);
+
+insertHabitHasTag:
+INSERT INTO HabitHasTag(habitId, tagId)
+VALUES (:habitId,:tagId);
+
+deleteHabitHasTag:
+DELETE FROM HabitHasTag WHERE habitId =:habitId AND tagId =:tagId;
