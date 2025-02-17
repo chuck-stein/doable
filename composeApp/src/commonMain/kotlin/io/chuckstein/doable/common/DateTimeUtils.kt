@@ -13,6 +13,7 @@ fun yesterday() = today().previousDay()
 
 fun LocalDate.nextDay() = plus(1, DAY)
 fun LocalDate.previousDay() = minus(1, DAY)
+
 fun LocalDate.previousDays(numDays: Int) = List(numDays) { index ->
     this.minus(numDays, DAY).plus(index, DAY)
 }
