@@ -5,8 +5,10 @@ import androidx.compose.animation.core.Spring.DampingRatioNoBouncy
 import androidx.compose.animation.core.Spring.StiffnessLow
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +38,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -59,6 +62,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import doable.composeapp.generated.resources.Res
@@ -196,7 +200,7 @@ private fun DayTrackerCard(state: DayTrackerState, onEvent: (TrackerEvent) -> Un
         ),
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 12.dp)
             .padding(top = 8.dp, bottom = if (keyboardIsVisible) 0.dp else 8.dp)
     ) {
         Column(
@@ -271,6 +275,7 @@ private fun TasksTab(state: TasksTabState, onEvent: (TrackerEvent) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun JournalTab(state: JournalTabState, onEvent: (TrackerEvent) -> Unit) {
     val listState = rememberLazyListState()
@@ -297,18 +302,32 @@ private fun JournalTab(state: JournalTabState, onEvent: (TrackerEvent) -> Unit) 
                 cachedTextModel = state.note
             }
 
-            TextField(
+            val interactionSource = remember { MutableInteractionSource() }
+            BasicTextField(
                 value = currentText,
                 onValueChange = { onEvent(UpdateJournalNote(it)) },
-                textStyle = textStyle,
+                textStyle = textStyle.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(KeyboardCapitalization.Sentences),
+                interactionSource = interactionSource,
                 modifier = Modifier
-                    .padding(14.dp)
+                    .padding(horizontal = 14.dp)
+                    .padding(bottom = 14.dp)
                     .fillMaxWidth(),
-                placeholder = {
-                    Text(stringResource(Res.string.what_did_you_do_today), style = textStyle)
-                }
-            )
+            ) { innerTextField ->
+                TextFieldDefaults.DecorationBox(
+                    value = currentText,
+                    innerTextField = innerTextField,
+                    enabled = true,
+                    singleLine = false,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = interactionSource,
+                    contentPadding = PaddingValues(vertical = 16.dp, horizontal = 8.dp),
+                    placeholder = {
+                        Text(stringResource(Res.string.what_did_you_do_today), style = textStyle)
+                    }
+                )
+            }
         }
     }
 }
