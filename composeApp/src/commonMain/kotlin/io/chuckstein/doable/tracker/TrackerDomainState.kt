@@ -69,6 +69,7 @@ data class TrackedHabit(
     val id: Long,
     val name: String,
     val frequency: HabitFrequency,
+    val trend: HabitTrend,
     val wasBuilding: Boolean,
     val wasPerformed: Boolean,
     val isNew: Boolean,

@@ -3,6 +3,9 @@ package io.chuckstein.doable.tracker
 import doable.composeapp.generated.resources.Res
 import doable.composeapp.generated.resources.delete_habit_cd
 import doable.composeapp.generated.resources.delete_task_cd
+import doable.composeapp.generated.resources.habit_trend_down_cd
+import doable.composeapp.generated.resources.habit_trend_neutral_cd
+import doable.composeapp.generated.resources.habit_trend_up_cd
 import doable.composeapp.generated.resources.hide_habit_cd
 import doable.composeapp.generated.resources.hide_task_cd
 import doable.composeapp.generated.resources.hide_untracked_habits
@@ -17,6 +20,7 @@ import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.common.today
 import io.chuckstein.doable.database.Task
+import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.TrackerEvent.ChangeFocusedDay
 import io.chuckstein.doable.tracker.TrackerEvent.ClearHabitIdToFocus
 import io.chuckstein.doable.tracker.TrackerEvent.ClearTaskIdToFocus
@@ -38,6 +42,9 @@ import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskName
 import io.telereso.kmp.core.icons.resources.AddCircleOutline
 import io.telereso.kmp.core.icons.resources.Close
 import io.telereso.kmp.core.icons.resources.RemoveCircleOutline
+import io.telereso.kmp.core.icons.resources.TrendingDown
+import io.telereso.kmp.core.icons.resources.TrendingFlat
+import io.telereso.kmp.core.icons.resources.TrendingUp
 import io.telereso.kmp.core.icons.resources.Visibility
 import io.telereso.kmp.core.icons.resources.VisibilityOff
 import kotlinx.datetime.LocalDate
@@ -227,7 +234,14 @@ class TrackerStateMapper {
         id = id,
         checked = wasPerformed,
         name = name.toTextModel(),
-        metadata = CheckableItemMetadataState.Empty, // TODO: implement metadata for both tasks and habits
+        metadata = HabitMetadataState( // TODO: implement remaining metadata for habits
+            trendIcon = when (trend) {
+                HabitTrend.Up -> IconState(Icons.TrendingUp, contentDescription = Res.string.habit_trend_up_cd.toTextModel())
+                HabitTrend.Down -> IconState(Icons.TrendingDown, contentDescription = Res.string.habit_trend_down_cd.toTextModel())
+                HabitTrend.Neutral -> IconState(Icons.TrendingFlat, contentDescription = Res.string.habit_trend_neutral_cd.toTextModel())
+                HabitTrend.None -> null
+            },
+        ),
         endIcon = endIcon?.takeIf { editable },
         autoFocus = id == habitIdToFocus,
         updateNameEvent = { UpdateHabitName(id, it) },

@@ -25,6 +25,9 @@
     <string name="delete_habit_cd">delete habit</string>
     <string name="stop_tracking_habit_cd">stop tracking habit</string>
     <string name="resume_tracking_habit_cd">resume tracking habit</string>
+    <string name="habit_trend_up_cd">habit trending up</string>
+    <string name="habit_trend_down_cd">habit trending down</string>
+    <string name="habit_trend_neutral_cd">habit trending flat</string>
     <string name="no_tracked_habits_message">No habits tracked today.</string>
     <string name="show_untracked_habits">SHOW UNTRACKED HABITS</string>
     <string name="hide_untracked_habits">HIDE UNTRACKED HABITS</string>

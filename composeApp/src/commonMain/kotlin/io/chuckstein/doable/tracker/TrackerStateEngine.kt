@@ -64,6 +64,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
 
 class TrackerStateEngine(
@@ -189,11 +190,39 @@ class TrackerStateEngine(
                     date.habitPerformedBothOfPast2Months(habit.id) -> HabitFrequency.Monthly
                     else -> HabitFrequency.None
                 },
-                trend = HabitTrend.None, // TODO: implement habit trends
+                trend = calculateHabitTrend(habit.id, date),
                 wasBuilding = false // TODO: implement habit building
             )
         }
         dataSource.insertHabitStatusesForDate(date, habitStatuses)
+    }
+
+    private suspend fun calculateHabitTrend(habitId: Long, date: LocalDate): HabitTrend { // TODO: test this function
+        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(habitId, numDates = 3)
+        if (recentDatesHabitPerformed.size < 3) return HabitTrend.None
+
+        val avgInterval = avgNumDaysBetweenDates(recentDatesHabitPerformed)
+        val moreRecentInterval = avgNumDaysBetweenDates(recentDatesHabitPerformed.take(2))
+        val lessRecentInterval = avgNumDaysBetweenDates(recentDatesHabitPerformed.takeLast(2))
+        val moreRecentIntervalIsSmaller = moreRecentInterval < lessRecentInterval
+
+        val consistentIntervalMargin = avgInterval * 0.25
+        val consistentIntervalLowerBound = avgInterval - consistentIntervalMargin
+        val consistentIntervalUpperBound = avgInterval + consistentIntervalMargin
+        val consistentIntervalRange = consistentIntervalLowerBound..consistentIntervalUpperBound
+        val isConsistentInterval = moreRecentInterval in consistentIntervalRange && lessRecentInterval in consistentIntervalRange
+
+        val daysSinceLastPerformed = recentDatesHabitPerformed.first().daysUntil(date)
+        val maintainingConsistentInterval = isConsistentInterval && daysSinceLastPerformed <= consistentIntervalUpperBound
+        val losingConsistentInterval = isConsistentInterval && daysSinceLastPerformed > consistentIntervalUpperBound
+
+        return when {
+            moreRecentIntervalIsSmaller && daysSinceLastPerformed <= moreRecentInterval -> HabitTrend.Up
+            maintainingConsistentInterval -> HabitTrend.Neutral
+            losingConsistentInterval -> HabitTrend.Down
+            daysSinceLastPerformed <= max(lessRecentInterval, moreRecentInterval) -> HabitTrend.Neutral
+            else -> HabitTrend.Down
+        }
     }
 
     private suspend fun LocalDate.numDaysHabitPerformedInPastWeek(habitId: Long) =
@@ -303,6 +332,7 @@ class TrackerStateEngine(
                     id = habit.id,
                     name = habit.name,
                     frequency = habitStatuses[habit.id]?.frequency ?: HabitFrequency.None,
+                    trend = habitStatuses[habit.id]?.trend ?: HabitTrend.None,
                     wasBuilding = habit.currentlyBuilding,
                     wasPerformed = habit.id in habitsPerformed,
                     isNew = !dataSource.doesAnyHabitStatusExistForHabit(habit.id)
@@ -314,6 +344,7 @@ class TrackerStateEngine(
                     id = habitStatus.habitId,
                     name = habitStatus.name,
                     frequency = habitStatus.frequency,
+                    trend = habitStatus.trend,
                     wasBuilding = habitStatus.wasBuilding,
                     wasPerformed = habitStatus.habitId in habitsPerformed,
                     isNew = false // TODO: need to disallow inserting habits while viewing past days, otherwise this could be true (and we would need to be able to retroactively create HabitStatuses, which would then have cascading effects on the HabitStatuses of past days for things like frequency)
@@ -481,6 +512,7 @@ class TrackerStateEngine(
                                 id = newHabit.id,
                                 name = newHabit.name,
                                 frequency = HabitFrequency.None,
+                                trend = HabitTrend.None,
                                 wasBuilding = false,
                                 wasPerformed = false,
                                 isNew = true
@@ -625,6 +657,7 @@ class TrackerStateEngine(
                             id = id,
                             name = updatedHabit.name,
                             frequency = HabitFrequency.None, // TODO: find a way to preserve previous habit frequency and trend
+                            trend = HabitTrend.None,
                             wasBuilding = false,
                             wasPerformed = false,
                             isNew = false

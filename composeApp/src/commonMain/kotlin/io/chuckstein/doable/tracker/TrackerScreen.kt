@@ -456,7 +456,13 @@ private fun CheckableItem(state: CheckableItemState, modifier: Modifier = Modifi
 fun CheckableItemMetadata(state: CheckableItemMetadataState) {
     when (state) {
         is CheckableItemMetadataState.Empty -> {}
-        is HabitMetadataState -> TODO()
+        is HabitMetadataState -> {
+            Crossfade(state.trendIcon) { trendIcon ->
+                trendIcon?.let {
+                    DoableIcon(it)
+                }
+            }
+        }
         is TaskMetadataState -> TODO()
     }
 }
