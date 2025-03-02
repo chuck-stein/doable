@@ -132,7 +132,7 @@ class TrackerStateEngine(
                 TrackerDomainState(
                     isLoading = false,
                     error = null,
-                    tasks = dataSource.selectAllTasks(),
+                    tasks = dataSource.selectAllTasks().sortedBy { it.dateCompleted != null },
                     focusedDay = today(),
                     trackedDays = today().previousDays(numDaysTracked - 1) + today(),
                 ).run {
