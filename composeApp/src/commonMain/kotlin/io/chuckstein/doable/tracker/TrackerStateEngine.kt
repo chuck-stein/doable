@@ -1,6 +1,7 @@
 package io.chuckstein.doable.tracker
 
 import co.touchlab.kermit.Logger
+import io.chuckstein.doable.common.avgNumDaysBetweenDates
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.previousDays
@@ -10,6 +11,7 @@ import io.chuckstein.doable.database.DataSourceException
 import io.chuckstein.doable.database.DoableDataSource
 import io.chuckstein.doable.database.Habit
 import io.chuckstein.doable.database.HabitStatus
+import io.chuckstein.doable.database.Task
 import io.chuckstein.doable.tracker.TrackerError.FailedToLoad
 import io.chuckstein.doable.tracker.TrackerError.FailedToSave
 import io.chuckstein.doable.tracker.TrackerEvent.AddTask
@@ -57,6 +59,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit.Companion.DAY
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
@@ -121,7 +124,7 @@ class TrackerStateEngine(
                 fallback = { TrackerDomainState(error = FailedToLoad, isLoading = false) }
             ) {
                 createMissingJournalEntries()
-                dataSource.selectJournalDatesWithoutHabitStatuses().sorted().forEach { date ->
+                dataSource.selectJournalDatesWithoutHabitStatuses().filter { it != today() }.sorted().forEach { date ->
                     createHabitStatuses(date)
                 }
                 val firstJournalEntry = checkNotNull(dataSource.selectFirstJournalEntry())
@@ -132,15 +135,19 @@ class TrackerStateEngine(
                     tasks = dataSource.selectAllTasks(),
                     focusedDay = today(),
                     trackedDays = today().previousDays(numDaysTracked - 1) + today(),
-                    dayDetailsMap = if (firstJournalEntry.date < today()) {
-                        mapOf(
-                            today() to getDayDetails(today()),
-                            yesterday() to getDayDetails(yesterday())
-                        )
-                    } else {
-                        mapOf(today() to getDayDetails(today()))
-                    }
-                )
+                ).run {
+                    // build an intermediate state then use it to build the dayDetailsMap
+                    copy(
+                        dayDetailsMap = if (firstJournalEntry.date < today()) {
+                            mapOf(
+                                today() to getDayDetails(today()),
+                                yesterday() to getDayDetails(yesterday())
+                            )
+                        } else {
+                            mapOf(today() to getDayDetails(today()))
+                        }
+                    )
+                }
             }
         }
     }
@@ -316,8 +323,14 @@ class TrackerStateEngine(
 
         return DayDetails(
             journalEntry = journalEntry,
-            journalTaskIds = tasks.filter { it.dateCompleted == date }.map { it.id },
-            journalHabitIds = trackedHabits.filter { it.wasPerformed }.map { it.id },
+            journalTaskIds = tasks
+                .filter { it.dateCompleted == date || it.isSuggested(date, tasks) }
+                .sortedByDescending { it.dateCompleted == date }
+                .map { it.id },
+            journalHabitIds = trackedHabits
+                .filter { it.wasPerformed || it.isSuggested(date) }
+                .sortedByDescending { it.wasPerformed }
+                .map { it.id },
             untrackedHabits = if (date == today()) {
                 habits.filterNot { it.currentlyTracking }
             } else {
@@ -325,6 +338,49 @@ class TrackerStateEngine(
             },
             trackedHabits = trackedHabits
         )
+    }
+
+    // very naive suggestion algo for now -- just pick the oldest task that's not completed
+    // TODO: have a more thoughtful approach to task suggestions
+    private fun Task.isSuggested(date: LocalDate, allTasks: List<Task>) = date == today() && allTasks
+        .filter { it.dateCompleted == null }
+        .minByOrNull { it.dateCreated }?.id == id
+
+    private suspend fun TrackedHabit.isSuggested(date: LocalDate): Boolean {
+        if (date != today()) return false
+
+        val shortTermDayOfWeekPropensity = calculateRecentDayOfWeekPropensity(SHORT_TERM_HABIT_PROPENSITY_NUM_DAYS, date)
+        if (shortTermDayOfWeekPropensity == 1.0) return true
+
+        val mediumTermDayOfWeekPropensity = calculateRecentDayOfWeekPropensity(MEDIUM_TERM_HABIT_PROPENSITY_NUM_DAYS, date)
+        if (mediumTermDayOfWeekPropensity >= 0.5) return true // TODO: maybe strictly greater than, if this ends up giving too many irrelevant suggestions?
+
+        val otherDaysOfWeekMediumTermPropensity = DayOfWeek.entries
+            .filterNot { it == date.dayOfWeek }
+            .map { calculateRecentDayOfWeekPropensity(MEDIUM_TERM_HABIT_PROPENSITY_NUM_DAYS, date, dayOfWeek = it) }
+        val isOnlyDayOfWeekPerformed = mediumTermDayOfWeekPropensity > 0.3 && otherDaysOfWeekMediumTermPropensity.all { it == 0.0 }
+        if (isOnlyDayOfWeekPerformed) return true
+
+        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(id, numDates = 3)
+        val numDaysSinceHabitPerformed = recentDatesHabitPerformed.firstOrNull()?.daysUntil(date) ?: Int.MAX_VALUE
+        return when (frequency) {
+            HabitFrequency.Daily -> numDaysSinceHabitPerformed >= 1
+            HabitFrequency.Weekly -> numDaysSinceHabitPerformed >= 7
+            HabitFrequency.Monthly -> numDaysSinceHabitPerformed >= 30
+            // TODO: consider upper limit for how long ago it was recently performed before we stop suggesting this one (otherwise remains until performed again)
+            // TODO: if the standard deviation from avg is high % of avg (not enough of a clear pattern), then don't suggest this habit
+            HabitFrequency.None -> recentDatesHabitPerformed.size >= 3 && numDaysSinceHabitPerformed >= avgNumDaysBetweenDates(recentDatesHabitPerformed)
+        }
+    }
+
+    private suspend fun TrackedHabit.calculateRecentDayOfWeekPropensity(
+        numDays: Int,
+        date: LocalDate,
+        dayOfWeek: DayOfWeek = date.dayOfWeek
+    ): Double {
+        val mediumTermReferenceDates = date.previousDays(numDays).filter { it.dayOfWeek == dayOfWeek }
+        val mediumTermNumTimesPerformed = dataSource.selectNumTimesHabitPerformedDuringDates(id, mediumTermReferenceDates)
+        return mediumTermNumTimesPerformed / mediumTermReferenceDates.size.toDouble()
     }
 
     private fun addTask(scope: CoroutineScope, position: Int? = null) {
@@ -635,3 +691,6 @@ class TrackerStateEngine(
         }
     }
 }
+
+private const val SHORT_TERM_HABIT_PROPENSITY_NUM_DAYS = 14
+private const val MEDIUM_TERM_HABIT_PROPENSITY_NUM_DAYS = 42

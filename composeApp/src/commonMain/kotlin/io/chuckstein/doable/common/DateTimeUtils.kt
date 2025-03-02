@@ -4,6 +4,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit.Companion.DAY
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
@@ -17,3 +18,8 @@ fun LocalDate.previousDay() = minus(1, DAY)
 fun LocalDate.previousDays(numDays: Int) = List(numDays) { index ->
     this.minus(numDays, DAY).plus(index, DAY)
 }
+
+fun avgNumDaysBetweenDates(dates: List<LocalDate>) = dates
+    .sorted()
+    .zipWithNext { date1, date2 -> date1.daysUntil(date2) }
+    .average()

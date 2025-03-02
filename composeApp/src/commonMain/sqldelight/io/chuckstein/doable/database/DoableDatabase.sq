@@ -1,5 +1,6 @@
 import kotlin.Boolean;
 import kotlinx.datetime.LocalDate;
+import kotlinx.datetime.DayOfWeek;
 import io.chuckstein.doable.tracker.HabitFrequency;
 import io.chuckstein.doable.tracker.HabitTrend;
 
@@ -109,12 +110,13 @@ SELECT * FROM Habit;
 CREATE TABLE HabitPerformed (
   habitId INTEGER NOT NULL REFERENCES Habit(id),
   date TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
+  dayOfWeek TEXT AS DayOfWeek NOT NULL CHECK (dayOfWeek IN ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY')),
   PRIMARY KEY (habitId, date)
 );
 
 insertHabitPerformed:
-INSERT INTO HabitPerformed(habitId, date)
-VALUES (:habitId,:date);
+INSERT INTO HabitPerformed(habitId, date, dayOfWeek)
+VALUES (:habitId,:date, :dayOfWeek);
 
 deleteHabitPerformed:
 DELETE FROM HabitPerformed WHERE habitId =:habitId AND date =:date;
@@ -123,10 +125,16 @@ selectAllHabitIdsPerformedOnDate:
 SELECT habitId FROM HabitPerformed
 WHERE date =:date;
 
-selectNumTimesHabitPerformedDuringDates:
-SELECT COUNT(*) FROM HabitPerformed
+selectTimesHabitPerformedDuringDates:
+SELECT * FROM HabitPerformed
 WHERE habitId = :habitId
 AND date IN :dates;
+
+selectMostRecentDatesHabitPerformed:
+SELECT date FROM HabitPerformed
+WHERE habitId = :habitId
+ORDER BY date DESC
+LIMIT :numDates;
 
 
 ---- Habit Status ----
@@ -155,6 +163,8 @@ SELECT * FROM HabitStatus;
 doesAnyHabitStatusExistForHabit:
 SELECT EXISTS(SELECT 1 FROM HabitStatus WHERE habitId =:habitId LIMIT 1) AS Boolean;
 
+deleteHabitStatus:
+DELETE FROM HabitStatus WHERE habitId =:habitId AND date =:date;
 
 ---- Tag ----
 

@@ -1,0 +1,45 @@
+import kotlinx.datetime.DayOfWeek;
+import kotlinx.datetime.LocalDate;
+
+CREATE TABLE HabitPerformed_new (
+  habitId INTEGER NOT NULL REFERENCES Habit(id),
+  date TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
+  dayOfWeek TEXT AS DayOfWeek NOT NULL CHECK (dayOfWeek IN ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY')),
+  PRIMARY KEY (habitId, date)
+);
+
+INSERT INTO HabitPerformed_new (habitId, date, dayOfWeek)
+SELECT
+    habitId,
+    date,
+    CASE
+        WHEN date == '2025-02-06' THEN 'THURSDAY'
+        WHEN date == '2025-02-07' THEN 'FRIDAY'
+        WHEN date == '2025-02-08' THEN 'SATURDAY'
+        WHEN date == '2025-02-09' THEN 'SUNDAY'
+        WHEN date == '2025-02-10' THEN 'MONDAY'
+        WHEN date == '2025-02-11' THEN 'TUESDAY'
+        WHEN date == '2025-02-12' THEN 'WEDNESDAY'
+        WHEN date == '2025-02-13' THEN 'THURSDAY'
+        WHEN date == '2025-02-14' THEN 'FRIDAY'
+        WHEN date == '2025-02-15' THEN 'SATURDAY'
+        WHEN date == '2025-02-16' THEN 'SUNDAY'
+        WHEN date == '2025-02-17' THEN 'MONDAY'
+        WHEN date == '2025-02-18' THEN 'TUESDAY'
+        WHEN date == '2025-02-19' THEN 'WEDNESDAY'
+        WHEN date == '2025-02-20' THEN 'THURSDAY'
+        WHEN date == '2025-02-21' THEN 'FRIDAY'
+        WHEN date == '2025-02-22' THEN 'SATURDAY'
+        WHEN date == '2025-02-23' THEN 'SUNDAY'
+        WHEN date == '2025-02-24' THEN 'MONDAY'
+        WHEN date == '2025-02-25' THEN 'TUESDAY'
+        WHEN date == '2025-02-26' THEN 'WEDNESDAY'
+        WHEN date == '2025-02-27' THEN 'THURSDAY'
+        WHEN date == '2025-02-28' THEN 'FRIDAY'
+        ELSE 'MONDAY'
+    END
+FROM HabitPerformed;
+
+DROP TABLE HabitPerformed;
+
+ALTER TABLE HabitPerformed_new RENAME TO HabitPerformed;

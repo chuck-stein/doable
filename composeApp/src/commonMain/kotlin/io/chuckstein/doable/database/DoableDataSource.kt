@@ -1,6 +1,7 @@
 package io.chuckstein.doable.database
 
 import co.touchlab.kermit.Logger
+import io.chuckstein.doable.database.adapters.dayOfWeekAdapter
 import io.chuckstein.doable.database.adapters.habitFrequencyAdapter
 import io.chuckstein.doable.database.adapters.habitTrendAdapter
 import io.chuckstein.doable.database.adapters.localDateAdapter
@@ -19,7 +20,10 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
             dateCompletedAdapter = localDateAdapter,
             deadlineAdapter = localDateAdapter
         ),
-        HabitPerformedAdapter = HabitPerformed.Adapter(dateAdapter = localDateAdapter),
+        HabitPerformedAdapter = HabitPerformed.Adapter(
+            dateAdapter = localDateAdapter,
+            dayOfWeekAdapter = dayOfWeekAdapter
+        ),
         HabitStatusAdapter = HabitStatus.Adapter(
             dateAdapter = localDateAdapter,
             frequencyAdapter = habitFrequencyAdapter,
@@ -117,7 +121,7 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
         habitId: Long,
         date: LocalDate
     ) = runQuery("insert habit $habitId performed on $date") {
-        queries.insertHabitPerformed(habitId, date)
+        queries.insertHabitPerformed(habitId, date, date.dayOfWeek)
     }
 
     suspend fun deleteHabitPerformed(
@@ -137,7 +141,14 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
         habitId: Long,
         dates: List<LocalDate>
     ) = runQuery("select num times habit $habitId performed during dates $dates") {
-        queries.selectNumTimesHabitPerformedDuringDates(habitId, dates).executeAsOne()
+        queries.selectTimesHabitPerformedDuringDates(habitId, dates).executeAsList().size
+    }
+
+    suspend fun selectMostRecentDatesHabitPerformed(
+        habitId: Long,
+        numDates: Long
+    ) = runQuery("select most recent $numDates dates habit $habitId performed") {
+        queries.selectMostRecentDatesHabitPerformed(habitId, numDates).executeAsList()
     }
 
     suspend fun insertHabitStatusesForDate(
@@ -161,10 +172,21 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
         queries.habitStatusDetails(date).executeAsList()
     }
 
+    suspend fun selectAllHabitStatuses(): List<HabitStatus> = runQuery("select all habit statuses") {
+        queries.selectAllHabitStatuses().executeAsList()
+    }
+
     suspend fun doesAnyHabitStatusExistForHabit(
         habitId: Long
     ) = runQuery("does any habit status exist for habit $habitId") {
         queries.doesAnyHabitStatusExistForHabit(habitId).executeAsOne()
+    }
+
+    suspend fun deleteHabitStatus(
+        habitId: Long,
+        date: LocalDate
+    ) = runQuery("delete habit status for habit $habitId on $date") {
+        queries.deleteHabitStatus(habitId, date)
     }
 
     /**
