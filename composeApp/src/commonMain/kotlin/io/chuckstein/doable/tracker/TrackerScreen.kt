@@ -459,7 +459,7 @@ fun CheckableItemMetadata(state: CheckableItemMetadataState) {
         is HabitMetadataState -> {
             Crossfade(state.trendIcon) { trendIcon ->
                 trendIcon?.let {
-                    DoableIcon(it)
+                    DoableIcon(it, tint = MaterialTheme.colorScheme.secondary)
                 }
             }
         }

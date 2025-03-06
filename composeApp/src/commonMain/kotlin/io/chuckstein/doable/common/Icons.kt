@@ -2,9 +2,11 @@ package io.chuckstein.doable.common
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import io.telereso.kmp.core.icons.resources.Circle
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -44,10 +46,15 @@ fun EmptyIconButton(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DoableIcon(iconState: IconState, modifier: Modifier = Modifier) = with(iconState) {
+fun DoableIcon(
+    iconState: IconState,
+    modifier: Modifier = Modifier,
+    tint: Color = LocalContentColor.current
+) = with(iconState) {
     Icon(
         modifier = modifier,
         painter = painterResource(icon),
-        contentDescription = contentDescription?.resolveText()
+        contentDescription = contentDescription?.resolveText(),
+        tint = tint
     )
 }
