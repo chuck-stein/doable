@@ -19,7 +19,20 @@ fun LocalDate.previousDays(numDays: Int) = List(numDays) { index ->
     this.minus(numDays, DAY).plus(index, DAY)
 }
 
+fun LocalDate.previousDaysInclusive(numDays: Int) = List(numDays) { index ->
+    this.minus(numDays, DAY).plus(index + 1, DAY)
+}
+
 fun avgNumDaysBetweenDates(dates: List<LocalDate>) = dates
     .sorted()
     .zipWithNext { date1, date2 -> date1.daysUntil(date2) }
     .average()
+
+
+operator fun ClosedRange<LocalDate>.iterator() = generateSequence(start) { it.nextDay() }
+    .takeWhile { it <= endInclusive }
+    .iterator()
+
+fun ClosedRange<LocalDate>.asList() = iterator().asSequence().toList()
+
+infix fun LocalDate.until(endDateExclusive: LocalDate) = this..endDateExclusive.previousDay()

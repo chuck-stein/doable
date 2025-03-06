@@ -1,11 +1,14 @@
 package io.chuckstein.doable.tracker
 
 import co.touchlab.kermit.Logger
+import io.chuckstein.doable.common.asList
 import io.chuckstein.doable.common.avgNumDaysBetweenDates
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.previousDays
+import io.chuckstein.doable.common.previousDaysInclusive
 import io.chuckstein.doable.common.today
+import io.chuckstein.doable.common.until
 import io.chuckstein.doable.common.yesterday
 import io.chuckstein.doable.database.DataSourceException
 import io.chuckstein.doable.database.DoableDataSource
@@ -126,7 +129,7 @@ class TrackerStateEngine(
             ) {
                 createMissingJournalEntries()
                 dataSource.selectJournalDatesWithoutHabitStatuses().filter { it != today() }.sorted().forEach { date ->
-                    createHabitStatuses(date)
+                    saveHabitStatuses(date)
                 }
                 val firstJournalEntry = checkNotNull(dataSource.selectFirstJournalEntry())
                 val numDaysTracked = firstJournalEntry.date.daysUntil(today()) + 1
@@ -135,7 +138,7 @@ class TrackerStateEngine(
                     error = null,
                     tasks = dataSource.selectAllTasks().sortedBy { it.dateCompleted != null },
                     focusedDay = today(),
-                    trackedDays = today().previousDays(numDaysTracked - 1) + today(),
+                    trackedDays = today().previousDaysInclusive(numDaysTracked),
                 ).run {
                     // build an intermediate state then use it to build the dayDetailsMap
                     copy(
@@ -179,26 +182,30 @@ class TrackerStateEngine(
         }
     }
 
-    private suspend fun createHabitStatuses(date: LocalDate) {
+    private suspend fun saveHabitStatuses(date: LocalDate) {
         val habitStatuses = dataSource.selectAllHabits().filter { it.currentlyTracking }.map { habit ->
-            HabitStatus(
-                habitId = habit.id,
-                date = date,
-                frequency = when {
-                    date.habitPerformed5OfPast7Days(habit.id) -> HabitFrequency.Daily
-                    date.habitPerformed3OfPast4Weeks(habit.id) -> HabitFrequency.Weekly
-                    date.habitPerformedBothOfPast2Months(habit.id) -> HabitFrequency.Monthly
-                    else -> HabitFrequency.None
-                },
-                trend = calculateHabitTrend(habit.id, date),
-                wasBuilding = false // TODO: implement habit building
-            )
+            createHabitStatus(habit.id, date)
         }
         dataSource.insertHabitStatusesForDate(date, habitStatuses)
     }
 
+    private suspend fun createHabitStatus(habitId: Long, date: LocalDate) = HabitStatus(
+        habitId = habitId,
+        date = date,
+        frequency = calculateHabitFrequency(habitId, date),
+        trend = calculateHabitTrend(habitId, date),
+        wasBuilding = false // TODO: implement habit building
+    )
+
+    private suspend fun calculateHabitFrequency(habitId: Long, date: LocalDate) = when {
+        date.habitPerformed5OfPast7Days(habitId) -> HabitFrequency.Daily
+        date.habitPerformed3OfPast4Weeks(habitId) -> HabitFrequency.Weekly
+        date.habitPerformedBothOfPast2Months(habitId) -> HabitFrequency.Monthly
+        else -> HabitFrequency.None
+    }
+
     private suspend fun calculateHabitTrend(habitId: Long, date: LocalDate): HabitTrend { // TODO: test this function
-        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(habitId, numDates = 3)
+        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(habitId, numDates = 3, date)
         if (recentDatesHabitPerformed.size < 3) return HabitTrend.None
 
         val avgInterval = avgNumDaysBetweenDates(recentDatesHabitPerformed)
@@ -226,7 +233,7 @@ class TrackerStateEngine(
     }
 
     private suspend fun LocalDate.numDaysHabitPerformedInPastWeek(habitId: Long) =
-        dataSource.selectNumTimesHabitPerformedDuringDates(habitId, previousDays(7))
+        dataSource.selectNumTimesHabitPerformedDuringDates(habitId, previousDaysInclusive(7))
 
     private suspend fun LocalDate.habitPerformed5OfPast7Days(habitId: Long) =
         numDaysHabitPerformedInPastWeek(habitId) >= 5
@@ -241,8 +248,12 @@ class TrackerStateEngine(
     }.size >= 3
 
     private suspend fun LocalDate.habitPerformedBothOfPast2Months(habitId: Long) =
-        dataSource.selectNumTimesHabitPerformedDuringDates(habitId, previousDays(30)) >= 1
-                && dataSource.selectNumTimesHabitPerformedDuringDates(habitId, minus(30, DAY).previousDays(30)) >= 1
+        dataSource.selectNumTimesHabitPerformedDuringDates(
+            habitId, previousDaysInclusive(30)
+        ) >= 1 &&
+                dataSource.selectNumTimesHabitPerformedDuringDates(
+                    habitId, minus(30, DAY).previousDaysInclusive(30)
+                ) >= 1
 
     private suspend fun saveCurrentJournalEntry() {
         Logger.d { "saving journal entry: ${currentDomainState.focusedDayDetails.journalEntry.note}" }
@@ -331,8 +342,8 @@ class TrackerStateEngine(
                 TrackedHabit(
                     id = habit.id,
                     name = habit.name,
-                    frequency = habitStatuses[habit.id]?.frequency ?: HabitFrequency.None,
-                    trend = habitStatuses[habit.id]?.trend ?: HabitTrend.None,
+                    frequency = calculateHabitFrequency(habit.id, date),
+                    trend = calculateHabitTrend(habit.id, date),
                     wasBuilding = habit.currentlyBuilding,
                     wasPerformed = habit.id in habitsPerformed,
                     isNew = !dataSource.doesAnyHabitStatusExistForHabit(habit.id)
@@ -392,7 +403,7 @@ class TrackerStateEngine(
         val isOnlyDayOfWeekPerformed = mediumTermDayOfWeekPropensity > 0.3 && otherDaysOfWeekMediumTermPropensity.all { it == 0.0 }
         if (isOnlyDayOfWeekPerformed) return true
 
-        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(id, numDates = 3)
+        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(id, numDates = 3, referenceDate = today())
         val numDaysSinceHabitPerformed = recentDatesHabitPerformed.firstOrNull()?.daysUntil(date) ?: Int.MAX_VALUE
         return when (frequency) {
             HabitFrequency.Daily -> numDaysSinceHabitPerformed >= 1
@@ -598,7 +609,53 @@ class TrackerStateEngine(
                 } else {
                     dataSource.deleteHabitPerformed(id, currentDomainState.focusedDay)
                 }
+
+                updateOutdatedHabitStatuses(
+                    habitId = id,
+                    dateToInvalidate = currentDomainState.focusedDay,
+                    onFailure = {
+                        // undo the original insert/delete to avoid data inconsistency
+                        if (habitIsNowPerformed) {
+                            dataSource.deleteHabitPerformed(id, currentDomainState.focusedDay)
+                        } else {
+                            dataSource.insertHabitPerformed(id, currentDomainState.focusedDay)
+                        }
+                    }
+                )
             }
+            domainStateFlow.updateByReadingDataOrDefault(fallback = { this }) {
+                updateFocusedDayDetails {
+                    copy(
+                        trackedHabits = trackedHabits.map { habit ->
+                            if (habit.id == id) {
+                                habit.copy(
+                                    trend = calculateHabitTrend(habit.id, focusedDay),
+                                    frequency = calculateHabitFrequency(habit.id, focusedDay),
+                                )
+                            } else {
+                                habit
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend inline fun updateOutdatedHabitStatuses(
+        habitId: Long,
+        dateToInvalidate: LocalDate,
+        onFailure: () -> Unit
+    ) {
+        try {
+            val daysWithOutdatedHabitStatus = dateToInvalidate until today()
+            val updatedHabitStatuses = daysWithOutdatedHabitStatus.asList().map { date ->
+                createHabitStatus(habitId, date)
+            }
+            dataSource.insertOrReplaceHabitStatuses(updatedHabitStatuses)
+        } catch (e: DataSourceException) {
+            onFailure()
+            throw e
         }
     }
 
@@ -689,7 +746,7 @@ class TrackerStateEngine(
         }
     }
 
-    private fun TrackerDomainState.updateFocusedDayDetails(update: DayDetails.() -> DayDetails) = copy(
+    private inline fun TrackerDomainState.updateFocusedDayDetails(update: DayDetails.() -> DayDetails) = copy(
         dayDetailsMap = dayDetailsMap + (focusedDay to focusedDayDetails.update())
     )
 

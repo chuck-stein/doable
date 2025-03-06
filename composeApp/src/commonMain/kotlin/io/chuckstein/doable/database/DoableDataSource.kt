@@ -146,9 +146,10 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
 
     suspend fun selectMostRecentDatesHabitPerformed(
         habitId: Long,
-        numDates: Long
-    ) = runQuery("select most recent $numDates dates habit $habitId performed") {
-        queries.selectMostRecentDatesHabitPerformed(habitId, numDates).executeAsList()
+        numDates: Long,
+        referenceDate: LocalDate
+    ) = runQuery("select most recent $numDates dates habit $habitId performed as of $referenceDate") {
+        queries.selectMostRecentDatesHabitPerformed(habitId, referenceDate, numDates).executeAsList()
     }
 
     suspend fun insertHabitStatusesForDate(
@@ -163,6 +164,18 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
                 )
             }
             queries.setJournalEntryHabitsCalculatedTrue(date)
+        }
+    }
+
+    suspend fun insertOrReplaceHabitStatuses(
+        habitStatuses: List<HabitStatus>
+    ) = runQuery("insert or replace habit statuses: $habitStatuses") {
+        database.transaction {
+            habitStatuses.forEach { habitStatus ->
+                queries.insertOrReplaceHabitStatus(
+                    habitStatus.habitId, habitStatus.date, habitStatus.frequency, habitStatus.trend, habitStatus.wasBuilding
+                )
+            }
         }
     }
 

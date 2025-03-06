@@ -133,6 +133,7 @@ AND date IN :dates;
 selectMostRecentDatesHabitPerformed:
 SELECT date FROM HabitPerformed
 WHERE habitId = :habitId
+AND date <= :referenceDate
 ORDER BY date DESC
 LIMIT :numDates;
 
@@ -150,6 +151,10 @@ CREATE TABLE HabitStatus (
 
 insertHabitStatus:
 INSERT INTO HabitStatus(habitId, date, frequency, trend, wasBuilding)
+VALUES (:habitId,:date,:frequency, :trend, :wasBuilding);
+
+insertOrReplaceHabitStatus:
+INSERT OR REPLACE INTO HabitStatus(habitId, date, frequency, trend, wasBuilding)
 VALUES (:habitId,:date,:frequency, :trend, :wasBuilding);
 
 habitStatusDetails:
