@@ -86,3 +86,5 @@ enum class HabitTrend(val serializedName: String) {
 enum class TaskPriority {
     Low, Medium, High
 }
+
+fun Task.isCompletedAsOf(date: LocalDate) = dateCompleted != null && dateCompleted <= date

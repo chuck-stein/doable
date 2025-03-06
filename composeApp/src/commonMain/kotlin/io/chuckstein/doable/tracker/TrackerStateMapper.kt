@@ -61,7 +61,8 @@ class TrackerStateMapper {
         nextDayButtonEnabled = domainState.focusedDay.nextDay() in domainState.trackedDays,
         days = domainState.trackedDays.mapIndexed { index, trackerDate ->
             val dayDetails = domainState.dayDetailsMap[trackerDate]
-            val habitsAndTasksAreEditable = index > domainState.trackedDays.lastIndex - 7
+            val habitsAndTasksAreCheckable = index > domainState.trackedDays.lastIndex - 7
+            val habitTrackingIsToggleable = index == domainState.trackedDays.lastIndex
             if (dayDetails == null) {
                 DayTrackerState(
                     isLoading = true,
@@ -73,17 +74,18 @@ class TrackerStateMapper {
                         trackerDate,
                         domainState.tasks,
                         domainState.taskIdToFocus,
-                        habitsAndTasksAreEditable
+                        habitsAndTasksAreCheckable
                     ),
                     journalTab = dayDetails.createJournalTab(
                         trackerDate,
                         domainState.tasks,
-                        habitsAndTasksAreEditable
+                        habitsAndTasksAreCheckable
                     ),
                     habitsTab = dayDetails.createHabitsTab(
                         trackerDate,
                         domainState.habitIdToFocus,
-                        habitsAndTasksAreEditable
+                        habitsAndTasksAreCheckable,
+                        habitTrackingIsToggleable
                     ),
                     onFocusEvent = ChangeFocusedDay(trackerDate),
                     errorMessage = dayDetails.error?.message?.toTextModel(),
@@ -121,14 +123,15 @@ class TrackerStateMapper {
         date: LocalDate,
         tasks: List<Task>,
         taskIdToFocus: Long?,
-        tasksAreEditable: Boolean
+        tasksAreCheckable: Boolean
     ) = TasksTabState(
-        tasks = tasks.map {
-            it.toCheckableItemState(
+        tasks = tasks.map { task ->
+            task.toCheckableItemState(
                 date = date,
-                endIcon = IconState(Icons.Close, Res.string.delete_task_cd.toTextModel()),
+                endIcon = IconState(Icons.Close, Res.string.delete_task_cd.toTextModel())
+                    .takeUnless { task.isCompletedAsOf(date) },
                 taskIdToFocus = taskIdToFocus,
-                editable = tasksAreEditable
+                checkable = tasksAreCheckable
             )
         }
     )
@@ -136,7 +139,7 @@ class TrackerStateMapper {
     private fun DayDetails.createJournalTab(
         date: LocalDate,
         allTasks: List<Task>,
-        habitsAndTasksAreEditable: Boolean
+        habitsAndTasksAreCheckable: Boolean
     ) = JournalTabState(
         note = journalEntry.note.toTextModel(),
         isStarred = journalEntry.isStarred,
@@ -147,7 +150,7 @@ class TrackerStateMapper {
                     .takeIf { task.dateCompleted != date },
                 endIconClickEvent = HideTaskFromJournal(task.id)
                     .takeIf { task.dateCompleted != date },
-                editable = habitsAndTasksAreEditable
+                checkable = habitsAndTasksAreCheckable
             )
         },
         journalHabits = journalHabitIds().map { habit ->
@@ -156,7 +159,7 @@ class TrackerStateMapper {
                     .takeIf { !habit.wasPerformed },
                 endIconClickEvent = HideHabitFromJournal(habit.id)
                     .takeIf { !habit.wasPerformed },
-                editable = habitsAndTasksAreEditable
+                checkable = habitsAndTasksAreCheckable
             )
         }
     )
@@ -164,7 +167,8 @@ class TrackerStateMapper {
     private fun DayDetails.createHabitsTab(
         date: LocalDate,
         habitIdToFocus: Long?,
-        habitsAreEditable: Boolean
+        habitsAreCheckable: Boolean,
+        habitTrackingIsToggleable: Boolean
     ) = HabitsTabState(
         trackedHabits = trackedHabits.map { habit ->
             habit.toCheckableItemState(
@@ -175,7 +179,7 @@ class TrackerStateMapper {
                         icon = Icons.RemoveCircleOutline,
                         contentDescription = Res.string.stop_tracking_habit_cd.toTextModel(),
                         enabled = !habit.wasPerformed
-                    )
+                    ).takeIf { habitTrackingIsToggleable }
                 },
                 endIconClickEvent = if (habit.isNew) {
                     DeleteHabit(habit.id)
@@ -184,7 +188,7 @@ class TrackerStateMapper {
                 },
                 backspaceWhenEmptyEvent = DeleteHabitAndMoveFocus(habit.id).takeIf { habit.isNew },
                 habitIdToFocus = habitIdToFocus,
-                editable = habitsAreEditable
+                checkable = habitsAreCheckable
             )
         },
         showAddHabitButton = date == today(),
@@ -197,7 +201,7 @@ class TrackerStateMapper {
                     name = habit.name.toTextModel(),
                     metadata = CheckableItemMetadataState.Empty,  // TODO: implement metadata for both tasks and habits
                     endIcon = IconState(Icons.AddCircleOutline, Res.string.resume_tracking_habit_cd.toTextModel())
-                        .takeIf { habitsAreEditable },
+                        .takeIf { habitTrackingIsToggleable },
                     active = false,
                     updateNameEvent = { UpdateHabitName(habit.id, it) },
                     toggleCheckedEvent = null,
@@ -228,16 +232,16 @@ class TrackerStateMapper {
         endIcon: IconState?,
         endIconClickEvent: TrackerEvent? = DeleteTask(id),
         taskIdToFocus: Long? = null,
-        editable: Boolean
+        checkable: Boolean
     ) = CheckableItemState(
         id = id,
-        checked = dateCompleted != null && dateCompleted <= date,
+        checked = isCompletedAsOf(date),
         name = name.toTextModel(),
         metadata = CheckableItemMetadataState.Empty, // TODO: implement metadata for both tasks and habits
-        endIcon = endIcon?.takeIf { editable },
+        endIcon = endIcon,
         autoFocus = id == taskIdToFocus,
         updateNameEvent = { UpdateTaskName(id, it) },
-        toggleCheckedEvent = ToggleTaskCompleted(id).takeIf { editable },
+        toggleCheckedEvent = ToggleTaskCompleted(id).takeIf { checkable },
         endIconClickEvent = endIconClickEvent,
         loseFocusEvent = SaveCurrentTaskName(id),
         autoFocusDoneEvent = ClearTaskIdToFocus,
@@ -249,8 +253,8 @@ class TrackerStateMapper {
         endIcon: IconState?,
         endIconClickEvent: TrackerEvent?,
         habitIdToFocus: Long? = null,
-        backspaceWhenEmptyEvent: TrackerEvent? = null,
-        editable: Boolean
+        backspaceWhenEmptyEvent: TrackerEvent? = null, // TODO: do I need this for tasks too?
+        checkable: Boolean
     ) = CheckableItemState(
         id = id,
         checked = wasPerformed,
@@ -263,10 +267,10 @@ class TrackerStateMapper {
                 HabitTrend.None -> null
             },
         ),
-        endIcon = endIcon?.takeIf { editable },
+        endIcon = endIcon,
         autoFocus = id == habitIdToFocus,
         updateNameEvent = { UpdateHabitName(id, it) },
-        toggleCheckedEvent = ToggleHabitPerformed(id).takeIf { editable },
+        toggleCheckedEvent = ToggleHabitPerformed(id).takeIf { checkable },
         endIconClickEvent = endIconClickEvent,
         loseFocusEvent = SaveCurrentHabitName(id),
         autoFocusDoneEvent = ClearHabitIdToFocus,
