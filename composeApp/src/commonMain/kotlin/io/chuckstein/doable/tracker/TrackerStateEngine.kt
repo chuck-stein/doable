@@ -393,6 +393,8 @@ class TrackerStateEngine(
     private suspend fun TrackedHabit.isSuggested(date: LocalDate): Boolean {
         if (date != today()) return false
 
+        if (trend == HabitTrend.Down) return true
+
         val shortTermDayOfWeekPropensity = calculateRecentDayOfWeekPropensity(SHORT_TERM_HABIT_PROPENSITY_NUM_DAYS, date)
         if (shortTermDayOfWeekPropensity == 1.0) return true
 
