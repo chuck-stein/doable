@@ -64,12 +64,14 @@ class TrackerStateMapper {
             val habitsAndTasksAreCheckable = index > domainState.trackedDays.lastIndex - 7
             val habitTrackingIsToggleable = index == domainState.trackedDays.lastIndex
             if (dayDetails == null) {
-                DayTrackerState(
+                TrackerDayState(
+                    date = trackerDate,
                     isLoading = true,
                     onFocusEvent = ChangeFocusedDay(trackerDate)
                 )
             } else {
-                DayTrackerState(
+                TrackerDayState(
+                    date = trackerDate,
                     tasksTab = createTasksTab(
                         trackerDate,
                         domainState.tasks,
@@ -93,6 +95,7 @@ class TrackerStateMapper {
                 )
             }
         },
+        isDatePickerOpen = domainState.isSelectingDate,
         isLoading = domainState.isLoading,
         errorMessage = domainState.error?.message?.toTextModel()
     )

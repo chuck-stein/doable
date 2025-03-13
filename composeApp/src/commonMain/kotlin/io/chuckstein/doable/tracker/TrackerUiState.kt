@@ -10,24 +10,35 @@ import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.common.toTextModel
 import io.telereso.kmp.core.icons.resources.Visibility
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 
 data class TrackerUiState(
     val header: TextModel = TextModel.empty,
-    val days: List<DayTrackerState> = emptyList(),
+    val days: List<TrackerDayState> = emptyList(),
     val previousDayButtonEnabled: Boolean = false,
     val nextDayButtonEnabled: Boolean = false,
+    val isDatePickerOpen: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: TextModel? = null
-)
+) {
+    private val trackedDates = days.map { it.date }
+    val trackedDatesAsUtcMillis = trackedDates.map { it.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds() }
+    val trackedYears = trackedDates.map { it.year }.toSet()
+}
 
-data class DayTrackerState(
+data class TrackerDayState(
+    val date: LocalDate,
     val tasksTab: TasksTabState = TasksTabState(),
     val journalTab: JournalTabState = JournalTabState(),
     val habitsTab: HabitsTabState = HabitsTabState(),
     val onFocusEvent: TrackerEvent? = null,
     val isLoading: Boolean = true,
     val errorMessage: TextModel? = null
-)
+) {
+    val dateUtcMillis = date.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+}
 
 data class TasksTabState(
     val tasks: List<CheckableItemState> = emptyList(),

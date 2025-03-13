@@ -8,7 +8,6 @@ import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.previousDays
 import io.chuckstein.doable.common.previousDaysInclusive
 import io.chuckstein.doable.common.today
-import io.chuckstein.doable.common.until
 import io.chuckstein.doable.common.yesterday
 import io.chuckstein.doable.database.DataSourceException
 import io.chuckstein.doable.database.DoableDataSource
@@ -37,6 +36,7 @@ import io.chuckstein.doable.tracker.TrackerEvent.SavePendingChanges
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleBuildingHabit
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleHabitPerformed
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleJournalEntryStarred
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTaskCompleted
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTrackingHabit
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
@@ -88,7 +88,9 @@ class TrackerStateEngine(
         when (event) {
             is InitializeTracker -> initializeTracker(scope)
             is ChangeFocusedDay -> changeFocusedDay(event.date, scope)
+            is ToggleSelectingDate -> domainStateFlow.update { it.copy(isSelectingDate = !it.isSelectingDate) }
             is SavePendingChanges -> scope.launch { savePendingChanges() }
+
             is UpdateJournalNote -> updateJournalNote(event.note)
             is ToggleJournalEntryStarred -> TODO()
             is HideTaskFromJournal -> hideTaskFromJournal(event.id)
@@ -648,7 +650,7 @@ class TrackerStateEngine(
         onFailure: () -> Unit
     ) {
         try {
-            val daysWithOutdatedHabitStatus = dateToInvalidate until today()
+            val daysWithOutdatedHabitStatus = dateToInvalidate ..< today()
             val updatedHabitStatuses = daysWithOutdatedHabitStatus.asList().map { date ->
                 createHabitStatus(habitId, date)
             }

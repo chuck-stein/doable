@@ -29,10 +29,8 @@ fun avgNumDaysBetweenDates(dates: List<LocalDate>) = dates
     .average()
 
 
-operator fun ClosedRange<LocalDate>.iterator() = generateSequence(start) { it.nextDay() }
-    .takeWhile { it <= endInclusive }
+operator fun OpenEndRange<LocalDate>.iterator() = generateSequence(start) { it.nextDay() }
+    .takeWhile { it < endExclusive }
     .iterator()
 
-fun ClosedRange<LocalDate>.asList() = iterator().asSequence().toList()
-
-infix fun LocalDate.until(endDateExclusive: LocalDate) = this..endDateExclusive.previousDay()
+fun OpenEndRange<LocalDate>.asList() = iterator().asSequence().toList()

@@ -14,10 +14,10 @@ import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.theme.DoableTheme
 import io.chuckstein.doable.tracker.CheckableItemState
-import io.chuckstein.doable.tracker.DayTrackerState
 import io.chuckstein.doable.tracker.HabitsTabState
 import io.chuckstein.doable.tracker.JournalTabState
 import io.chuckstein.doable.tracker.TasksTabState
+import io.chuckstein.doable.tracker.TrackerDayState
 import io.chuckstein.doable.tracker.TrackerEvent.SavePendingChanges
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleHabitPerformed
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTaskCompleted
@@ -27,6 +27,7 @@ import io.chuckstein.doable.tracker.TrackerViewModel
 import io.telereso.kmp.core.icons.resources.Close
 import io.telereso.kmp.core.icons.resources.RemoveCircleOutline
 import io.telereso.kmp.core.icons.resources.VisibilityOff
+import kotlinx.datetime.LocalDate
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -64,7 +65,8 @@ val mockTrackerUiState: TrackerUiState = TrackerUiState(
     isLoading = false,
     header = "Saturday, January 25th".toTextModel(),
     days = listOf(
-        DayTrackerState(
+        TrackerDayState(
+            date = LocalDate(2025, 1, 25),
             isLoading = false,
             tasksTab = TasksTabState(
                 tasks = listOf(

@@ -18,6 +18,7 @@ data class TrackerDomainState(
     val taskIdToFocus: Long? = null,
     val habitIdToFocus: Long? = null,
     val pendingChanges: Set<PendingChange> = emptySet(),
+    val isSelectingDate: Boolean = false,
     val isLoading: Boolean = true,
     val error: TrackerError? = null
 ) {

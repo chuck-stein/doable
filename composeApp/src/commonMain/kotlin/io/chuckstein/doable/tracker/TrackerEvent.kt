@@ -6,6 +6,7 @@ sealed interface TrackerEvent {
 
     data object InitializeTracker : TrackerEvent
     data class ChangeFocusedDay(val date: LocalDate) : TrackerEvent
+    data object ToggleSelectingDate : TrackerEvent
     data object SavePendingChanges : TrackerEvent
 
     data object AddTask : TrackerEvent

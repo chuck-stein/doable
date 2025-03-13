@@ -8,6 +8,8 @@
     <string name="next_day_cd">next day</string>
     <string name="failed_to_load_error">Oops! It looks like we failed to load your data.</string>
     <string name="failed_to_save_error">Oops! It looks like we failed to save your most recent data.</string>
+    <string name="action_confirm">CONFIRM</string>
+    <string name="action_cancel">CANCEL</string>
 
     <!-- Tasks Tab -->
     <string name="add_task">Add task</string>

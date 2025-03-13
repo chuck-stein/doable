@@ -27,18 +27,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -50,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
@@ -66,6 +72,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import doable.composeapp.generated.resources.Res
+import doable.composeapp.generated.resources.action_cancel
+import doable.composeapp.generated.resources.action_confirm
 import doable.composeapp.generated.resources.add_habit
 import doable.composeapp.generated.resources.add_task
 import doable.composeapp.generated.resources.habits
@@ -89,6 +97,7 @@ import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataStat
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.TaskMetadataState
 import io.chuckstein.doable.tracker.TrackerEvent.AddTask
 import io.chuckstein.doable.tracker.TrackerEvent.AddTrackedHabit
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateJournalNote
 import io.telereso.kmp.core.icons.resources.Add
@@ -113,12 +122,17 @@ fun TrackerScreen(state: TrackerUiState = TrackerUiState(), onEvent: (TrackerEve
                 LoadingIndicator()
             } else {
                 val pagerState = rememberPagerState(initialPage = state.days.lastIndex) { state.days.size }
+                val focusedDay = state.days[pagerState.currentPage]
 
-                LaunchedEffect(pagerState.currentPage) {
-                    state.days[pagerState.currentPage].onFocusEvent?.let(onEvent)
+                LaunchedEffect(focusedDay.date) {
+                    focusedDay.onFocusEvent?.let(onEvent)
                 }
 
-                DateNavigationBar(state, pagerState)
+                if (state.isDatePickerOpen) {
+                    TrackerDatePicker(state, pagerState, focusedDay, onEvent)
+                }
+
+                DateNavigationBar(state, pagerState, onEvent)
                 HorizontalPager(pagerState) { index ->
                     DayTrackerCard(state.days[index], onEvent)
                 }
@@ -127,10 +141,53 @@ fun TrackerScreen(state: TrackerUiState = TrackerUiState(), onEvent: (TrackerEve
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrackerDatePicker(
+    trackerState: TrackerUiState,
+    pagerState: PagerState,
+    focusedDay: TrackerDayState,
+    onEvent: (TrackerEvent) -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = focusedDay.dateUtcMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis in trackerState.trackedDatesAsUtcMillis
+            override fun isSelectableYear(year: Int) = year in trackerState.trackedYears
+        },
+        yearRange = trackerState.trackedYears.min()..trackerState.trackedYears.max()
+    )
+    DatePickerDialog(
+        onDismissRequest = { onEvent(ToggleSelectingDate) },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val newFocusedDayIndex = trackerState.trackedDatesAsUtcMillis.indexOf(datePickerState.selectedDateMillis)
+                    if (newFocusedDayIndex in 0 ..< pagerState.pageCount) {
+                        pagerState.requestScrollToPage(newFocusedDayIndex)
+                    }
+                    onEvent(ToggleSelectingDate)
+                }
+            ) {
+                Text(stringResource(Res.string.action_confirm))
+            }
+            // TODO: add "TODAY" button
+        },
+        dismissButton = {
+            TextButton(onClick = { onEvent(ToggleSelectingDate) }) {
+                Text(stringResource(Res.string.action_cancel))
+            }
+        }
+    ) {
+        DatePicker(datePickerState, showModeToggle = false)
+    }
+}
+
 @Composable
 private fun DateNavigationBar(
     state: TrackerUiState,
     pagerState: PagerState,
+    onEvent: (TrackerEvent) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val pageChangeAnimation = spring<Float>(DampingRatioNoBouncy, StiffnessLow)
@@ -155,7 +212,10 @@ private fun DateNavigationBar(
                 text = text,
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onEvent(ToggleSelectingDate) }
             )
         }
         DoableIconButton(
@@ -172,7 +232,7 @@ private fun DateNavigationBar(
 }
 
 @Composable
-private fun DayTrackerCard(state: DayTrackerState, onEvent: (TrackerEvent) -> Unit) {
+private fun DayTrackerCard(state: TrackerDayState, onEvent: (TrackerEvent) -> Unit) {
     val pagerState = rememberPagerState(initialPage = 1) { 3 }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
