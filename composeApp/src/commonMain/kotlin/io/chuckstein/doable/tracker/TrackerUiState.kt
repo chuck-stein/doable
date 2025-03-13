@@ -9,6 +9,7 @@ import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.common.toTextModel
+import io.chuckstein.doable.tracker.TrackerEvent.ChangeFocusedDay
 import io.telereso.kmp.core.icons.resources.Visibility
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -33,10 +34,10 @@ data class TrackerDayState(
     val tasksTab: TasksTabState = TasksTabState(),
     val journalTab: JournalTabState = JournalTabState(),
     val habitsTab: HabitsTabState = HabitsTabState(),
-    val onFocusEvent: TrackerEvent? = null,
     val isLoading: Boolean = true,
     val errorMessage: TextModel? = null
 ) {
+    val onFocusEvent = ChangeFocusedDay(date)
     val dateUtcMillis = date.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
 }
 

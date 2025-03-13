@@ -21,7 +21,6 @@ import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.common.today
 import io.chuckstein.doable.database.Task
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
-import io.chuckstein.doable.tracker.TrackerEvent.ChangeFocusedDay
 import io.chuckstein.doable.tracker.TrackerEvent.ClearHabitIdToFocus
 import io.chuckstein.doable.tracker.TrackerEvent.ClearTaskIdToFocus
 import io.chuckstein.doable.tracker.TrackerEvent.DeleteHabit
@@ -67,7 +66,6 @@ class TrackerStateMapper {
                 TrackerDayState(
                     date = trackerDate,
                     isLoading = true,
-                    onFocusEvent = ChangeFocusedDay(trackerDate)
                 )
             } else {
                 TrackerDayState(
@@ -89,7 +87,6 @@ class TrackerStateMapper {
                         habitsAndTasksAreCheckable,
                         habitTrackingIsToggleable
                     ),
-                    onFocusEvent = ChangeFocusedDay(trackerDate),
                     errorMessage = dayDetails.error?.message?.toTextModel(),
                     isLoading = false
                 )

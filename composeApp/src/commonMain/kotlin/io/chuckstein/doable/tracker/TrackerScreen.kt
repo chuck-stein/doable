@@ -124,8 +124,8 @@ fun TrackerScreen(state: TrackerUiState = TrackerUiState(), onEvent: (TrackerEve
                 val pagerState = rememberPagerState(initialPage = state.days.lastIndex) { state.days.size }
                 val focusedDay = state.days[pagerState.currentPage]
 
-                LaunchedEffect(focusedDay.date) {
-                    focusedDay.onFocusEvent?.let(onEvent)
+                LaunchedEffect(focusedDay.onFocusEvent) {
+                    focusedDay.onFocusEvent.let(onEvent)
                 }
 
                 if (state.isDatePickerOpen) {
