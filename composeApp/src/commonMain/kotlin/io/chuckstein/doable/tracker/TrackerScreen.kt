@@ -295,8 +295,8 @@ private fun JournalTab(state: JournalTabState, onEvent: (TrackerEvent) -> Unit) 
             val cachedText = cachedTextModel.resolveText()
             val currentText = state.note.resolveText()
             LaunchedEffect(currentText, lastListIndex) {
-                if (currentText.length > cachedText.length && currentText.indexOf(cachedText) == 0) {
-                    // ensure the bottom of text field is always visible when new text is typed at the end
+                val newTextAppended = currentText.length > cachedText.length && currentText.indexOf(cachedText) == 0
+                if (newTextAppended && listState.canScrollForward) {
                     listState.scrollToItem(lastListIndex, scrollOffset = Int.MAX_VALUE)
                 }
                 cachedTextModel = state.note
