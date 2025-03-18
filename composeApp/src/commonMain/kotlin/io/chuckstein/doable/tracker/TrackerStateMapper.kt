@@ -72,7 +72,7 @@ class TrackerStateMapper {
                     date = trackerDate,
                     tasksTab = createTasksTab(
                         trackerDate,
-                        domainState.tasks,
+                        domainState.tasks.filter { it.dateCreated <= trackerDate },
                         domainState.taskIdToFocus,
                         habitsAndTasksAreCheckable
                     ),
