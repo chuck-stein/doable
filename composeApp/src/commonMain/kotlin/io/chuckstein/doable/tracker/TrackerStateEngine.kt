@@ -651,8 +651,9 @@ class TrackerStateEngine(
         dateToInvalidate: LocalDate,
         onFailure: () -> Unit
     ) {
+        if (currentDomainState.trackedDays.isEmpty()) return
         try {
-            val daysWithOutdatedHabitStatus = dateToInvalidate ..< today()
+            val daysWithOutdatedHabitStatus = dateToInvalidate ..< currentDomainState.trackedDays.last()
             val updatedHabitStatuses = daysWithOutdatedHabitStatus.asList().map { date ->
                 createHabitStatus(habitId, date)
             }
