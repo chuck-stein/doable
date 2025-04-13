@@ -149,10 +149,6 @@ CREATE TABLE HabitStatus (
   PRIMARY KEY (habitId, date)
 );
 
-insertHabitStatus:
-INSERT INTO HabitStatus(habitId, date, frequency, trend, wasBuilding)
-VALUES (:habitId,:date,:frequency, :trend, :wasBuilding);
-
 insertOrReplaceHabitStatus:
 INSERT OR REPLACE INTO HabitStatus(habitId, date, frequency, trend, wasBuilding)
 VALUES (:habitId,:date,:frequency, :trend, :wasBuilding);

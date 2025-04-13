@@ -159,7 +159,7 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
         require(habitStatuses.all { it.date == date }) { "All habit statuses must have the given date $date" }
         database.transaction {
             habitStatuses.forEach { habitStatus ->
-                queries.insertHabitStatus(
+                queries.insertOrReplaceHabitStatus(
                     habitStatus.habitId, date, habitStatus.frequency, habitStatus.trend, habitStatus.wasBuilding
                 )
             }
