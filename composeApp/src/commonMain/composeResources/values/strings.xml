@@ -22,6 +22,15 @@
     <string name="high_priority">High priority</string>
     <string name="no_deadline">No deadline</string>
     <string name="deadline_label">Deadline: %1$s</string>
+    <string name="due_today">DUE TODAY</string>
+    <string name="due_tomorrow">DUE TOMORROW</string>
+    <string name="due_monday">DUE MONDAY</string>
+    <string name="due_tuesday">DUE TUESDAY</string>
+    <string name="due_wednesday">DUE WEDNESDAY</string>
+    <string name="due_thursday">DUE THURSDAY</string>
+    <string name="due_friday">DUE FRIDAY</string>
+    <string name="due_saturday">DUE SATURDAY</string>
+    <string name="due_sunday">DUE SUNDAY</string>
     <string name="show_older_tasks">SHOW OLDER TASKS</string>
     <string name="hide_older_tasks">HIDE OLDER TASKS</string>
 

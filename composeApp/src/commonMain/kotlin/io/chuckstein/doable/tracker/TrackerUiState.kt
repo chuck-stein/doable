@@ -69,6 +69,7 @@ data class CheckableItemState(
     val id: Long,
     val checked: Boolean = false,
     val name: TextModel = TextModel.empty,
+    val infoText: TextModel? = null,
     val metadata: CheckableItemMetadataState = CheckableItemMetadataState.Empty,
     val endIcon: IconState? = null,
     val optionsState: CheckableItemOptionsState = CheckableItemOptionsState.Empty,

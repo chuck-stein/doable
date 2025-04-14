@@ -11,6 +11,7 @@ import kotlinx.datetime.todayIn
 
 fun today() = Clock.System.todayIn(TimeZone.currentSystemDefault())
 fun yesterday() = today().previousDay()
+fun tomorrow() = today().nextDay()
 
 fun LocalDate.nextDay() = plus(1, DAY)
 fun LocalDate.previousDay() = minus(1, DAY)

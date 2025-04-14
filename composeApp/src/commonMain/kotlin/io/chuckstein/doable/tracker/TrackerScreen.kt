@@ -539,31 +539,40 @@ private fun CheckableItem(state: CheckableItemState, modifier: Modifier = Modifi
                 onCheckedChange = { state.toggleCheckedEvent?.let(onEvent) },
                 enabled = state.checkboxEnabled
             )
-            BasicTextField(
-                value = state.name.resolveText(),
-                onValueChange = { state.updateNameEvent?.invoke(it)?.let(onEvent) },
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = state.textAlpha),
-                    textDecoration = state.textDecoration
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(onNext = { state.nextActionEvent?.let(onEvent) }),
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester)
-                    .onKeyEvent { keyEvent ->
-                        if (state.name.isEmpty() && keyEvent.key == Key.Backspace) {
-                            state.backspaceWhenEmptyEvent?.let(onEvent)
-                            true
-                        } else {
-                            false
+            Column(Modifier.weight(1f)) {
+                BasicTextField(
+                    value = state.name.resolveText(),
+                    onValueChange = { state.updateNameEvent?.invoke(it)?.let(onEvent) },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = state.textAlpha),
+                        textDecoration = state.textDecoration
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { state.nextActionEvent?.let(onEvent) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onKeyEvent { keyEvent ->
+                            if (state.name.isEmpty() && keyEvent.key == Key.Backspace) {
+                                state.backspaceWhenEmptyEvent?.let(onEvent)
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
-            )
+                )
+                state.infoText?.let {
+                    Text(
+                        text = it.resolveText(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
             CheckableItemMetadata(state.metadata)
             Crossfade(state.endIcon) { icon ->
                 if (icon == null) {
