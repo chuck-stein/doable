@@ -8,15 +8,20 @@
     <string name="next_day_cd">next day</string>
     <string name="failed_to_load_error">Oops! It looks like we failed to load your data.</string>
     <string name="failed_to_save_error">Oops! It looks like we failed to save your most recent data.</string>
+    <string name="select_journal_entry">Select journal entry</string>
     <string name="action_confirm">CONFIRM</string>
     <string name="action_cancel">CANCEL</string>
+    <string name="action_clear">CLEAR</string>
+    <string name="action_go_to_today">TODAY</string>
 
     <!-- Tasks Tab -->
     <string name="add_task">Add task</string>
     <string name="delete_task_cd">delete task</string>
-    <string name="low_priority">Low Priority</string>
-    <string name="medium_priority">Medium Priority</string>
-    <string name="high_priority">High Priority</string>
+    <string name="low_priority">Low priority</string>
+    <string name="medium_priority">Medium priority</string>
+    <string name="high_priority">High priority</string>
+    <string name="no_deadline">No deadline</string>
+    <string name="deadline_label">Deadline: %1$s</string>
     <string name="show_older_tasks">SHOW OLDER TASKS</string>
     <string name="hide_older_tasks">HIDE OLDER TASKS</string>
 

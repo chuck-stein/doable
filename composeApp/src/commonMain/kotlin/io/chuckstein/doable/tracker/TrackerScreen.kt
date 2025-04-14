@@ -10,6 +10,7 @@ import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,6 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -76,8 +78,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import doable.composeapp.generated.resources.Res
-import doable.composeapp.generated.resources.action_cancel
+import doable.composeapp.generated.resources.action_clear
 import doable.composeapp.generated.resources.action_confirm
+import doable.composeapp.generated.resources.action_go_to_today
 import doable.composeapp.generated.resources.add_habit
 import doable.composeapp.generated.resources.add_task
 import doable.composeapp.generated.resources.habits
@@ -86,10 +89,13 @@ import doable.composeapp.generated.resources.journal
 import doable.composeapp.generated.resources.low_priority
 import doable.composeapp.generated.resources.medium_priority
 import doable.composeapp.generated.resources.next_day_cd
+import doable.composeapp.generated.resources.no_deadline
 import doable.composeapp.generated.resources.no_tracked_habits_message
 import doable.composeapp.generated.resources.previous_day_cd
+import doable.composeapp.generated.resources.select_journal_entry
 import doable.composeapp.generated.resources.tasks
 import doable.composeapp.generated.resources.what_did_you_do_today
+import io.chuckstein.doable.common.DatePickerTitleWithCancelButton
 import io.chuckstein.doable.common.DoableIcon
 import io.chuckstein.doable.common.DoableIconButton
 import io.chuckstein.doable.common.EmptyIconButton
@@ -108,10 +114,12 @@ import io.chuckstein.doable.tracker.CheckableItemOptionsState.HabitOptionsState
 import io.chuckstein.doable.tracker.CheckableItemOptionsState.TaskOptionsState
 import io.chuckstein.doable.tracker.TrackerEvent.AddTask
 import io.chuckstein.doable.tracker.TrackerEvent.AddTrackedHabit
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskDeadline
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateJournalNote
+import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskDeadline
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskPriority
 import io.telereso.kmp.core.icons.resources.Add
 import io.telereso.kmp.core.icons.resources.ChevronLeft
@@ -119,6 +127,9 @@ import io.telereso.kmp.core.icons.resources.ChevronRight
 import io.telereso.kmp.core.icons.resources.KeyboardDoubleArrowDown
 import io.telereso.kmp.core.icons.resources.KeyboardDoubleArrowUp
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -143,7 +154,7 @@ fun TrackerScreen(state: TrackerUiState = TrackerUiState(), onEvent: (TrackerEve
                     focusedDay.onFocusEvent.let(onEvent)
                 }
 
-                if (state.isDatePickerOpen) {
+                if (state.showDatePicker) {
                     TrackerDatePicker(state, pagerState, focusedDay, onEvent)
                 }
 
@@ -186,15 +197,28 @@ private fun TrackerDatePicker(
             ) {
                 Text(stringResource(Res.string.action_confirm))
             }
-            // TODO: add "TODAY" button
         },
         dismissButton = {
-            TextButton(onClick = { onEvent(ToggleSelectingDate) }) {
-                Text(stringResource(Res.string.action_cancel))
+            TextButton(
+                onClick = {
+                    pagerState.requestScrollToPage(pagerState.pageCount - 1)
+                    onEvent(ToggleSelectingDate)
+                }
+            ) {
+                Text(stringResource(Res.string.action_go_to_today))
             }
-        }
+        },
     ) {
-        DatePicker(datePickerState, showModeToggle = false)
+        DatePicker(
+            state = datePickerState,
+            showModeToggle = false,
+            title = {
+                DatePickerTitleWithCancelButton(
+                    title = Res.string.select_journal_entry.toTextModel(),
+                    onCancelClick = { onEvent(ToggleSelectingDate) }
+                )
+            }
+        )
     }
 }
 
@@ -582,36 +606,115 @@ private fun CheckableItemOptions(state: CheckableItemOptionsState, onEvent: (Tra
 @Composable
 private fun TaskOptionsBar(state: TaskOptionsState, onEvent: (TrackerEvent) -> Unit) {
     Surface(Modifier.fillMaxWidth(), color = focusedItemColor()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Box {
                 TextButton(onClick = { onEvent(ToggleEditingTaskPriority) }) {
-                    Text(text = state.priorityText.resolveText())
+                    Text(text = state.priorityLabel.resolveText())
                 }
+                TaskPriorityDropdown(state, onEvent)
+            }
+            Box {
+                TextButton(onClick = { onEvent(ToggleEditingTaskDeadline) }) {
+                    Text(text = state.deadlineLabel.resolveText())
+                }
+                if (state.showDeadlineDatePicker) {
+                    TaskDeadlineDatePicker(state, onEvent)
+                }
+            }
+        }
+    }
+}
 
-                DropdownMenu(
-                    expanded = state.showPriorityDropdown,
-                    onDismissRequest = { onEvent(ToggleEditingTaskPriority) }
-                ) {
-                    listOf(
-                        Triple(TaskPriority.High, Res.string.high_priority, Icons.KeyboardDoubleArrowUp),
-                        Triple(TaskPriority.Medium, Res.string.medium_priority, null),
-                        Triple(TaskPriority.Low, Res.string.low_priority, Icons.KeyboardDoubleArrowDown)
-                    ).forEach { (priority, label, icon) ->
+@Composable
+private fun TaskPriorityDropdown(
+    state: TaskOptionsState,
+    onEvent: (TrackerEvent) -> Unit
+) {
+    DropdownMenu(
+        expanded = state.showPriorityDropdown,
+        onDismissRequest = { onEvent(ToggleEditingTaskPriority) }
+    ) {
+        listOf(
+            Triple(TaskPriority.High, Res.string.high_priority, Icons.KeyboardDoubleArrowUp),
+            Triple(TaskPriority.Medium, Res.string.medium_priority, null),
+            Triple(TaskPriority.Low, Res.string.low_priority, Icons.KeyboardDoubleArrowDown)
+        ).forEach { (priority, label, icon) ->
 
-                        DropdownMenuItem(
-                            text = { Text(stringResource(label)) },
-                            trailingIcon = icon?.let {
-                                { Icon(painterResource(it), contentDescription = null) }
-                            },
-                            onClick = {
-                                onEvent(UpdateTaskPriority(state.taskId, priority))
-                                onEvent(ToggleEditingTaskPriority)
-                            }
+            DropdownMenuItem(
+                text = { Text(stringResource(label)) },
+                trailingIcon = icon?.let {
+                    { Icon(painterResource(it), contentDescription = null) }
+                },
+                onClick = {
+                    onEvent(UpdateTaskPriority(state.taskId, priority))
+                    onEvent(ToggleEditingTaskPriority)
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TaskDeadlineDatePicker(
+    state: TaskOptionsState,
+    onEvent: (TrackerEvent) -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = state.deadlineUtcMillis,
+    )
+    DatePickerDialog(
+        onDismissRequest = { onEvent(ToggleEditingTaskDeadline) },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val selectedDateInstant = datePickerState.selectedDateMillis?.let { Instant.fromEpochMilliseconds(it) }
+                    val selectedDate = selectedDateInstant?.toLocalDateTime(TimeZone.UTC)?.date
+                    onEvent(UpdateTaskDeadline(state.taskId, selectedDate))
+                    onEvent(ToggleEditingTaskDeadline)
+                }
+            ) {
+                Text(stringResource(Res.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    onEvent(UpdateTaskDeadline(state.taskId, deadline = null))
+                    onEvent(ToggleEditingTaskDeadline)
+                }
+            ) {
+                Text(stringResource(Res.string.action_clear))
+            }
+        }
+    ) {
+        val dateFormatter = remember { DatePickerDefaults.dateFormatter() }
+        DatePicker(
+            state = datePickerState,
+            showModeToggle = false,
+            title = {
+                DatePickerTitleWithCancelButton(
+                    title = state.deadlineDatePickerTitle,
+                    onCancelClick = { onEvent(ToggleEditingTaskDeadline) }
+                )
+            },
+            headline = {
+                Box(Modifier.padding(start = 24.dp, end = 12.dp, bottom = 12.dp)) {
+                    if (datePickerState.selectedDateMillis == null) {
+                        Text(stringResource(Res.string.no_deadline))
+                    } else {
+                        DatePickerDefaults.DatePickerHeadline(
+                            selectedDateMillis = datePickerState.selectedDateMillis,
+                            displayMode = datePickerState.displayMode,
+                            dateFormatter = dateFormatter,
                         )
                     }
                 }
             }
-        }
+        )
     }
 }
 

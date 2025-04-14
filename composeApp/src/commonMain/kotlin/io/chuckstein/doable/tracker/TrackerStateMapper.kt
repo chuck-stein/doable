@@ -1,6 +1,7 @@
 package io.chuckstein.doable.tracker
 
 import doable.composeapp.generated.resources.Res
+import doable.composeapp.generated.resources.deadline_label
 import doable.composeapp.generated.resources.delete_habit_cd
 import doable.composeapp.generated.resources.delete_task_cd
 import doable.composeapp.generated.resources.habit_trend_down_cd
@@ -12,6 +13,7 @@ import doable.composeapp.generated.resources.hide_untracked_habits
 import doable.composeapp.generated.resources.high_priority
 import doable.composeapp.generated.resources.low_priority
 import doable.composeapp.generated.resources.medium_priority
+import doable.composeapp.generated.resources.no_deadline
 import doable.composeapp.generated.resources.resume_tracking_habit_cd
 import doable.composeapp.generated.resources.show_untracked_habits
 import doable.composeapp.generated.resources.stop_tracking_habit_cd
@@ -100,7 +102,7 @@ class TrackerStateMapper {
                 )
             }
         },
-        isDatePickerOpen = domainState.isSelectingDate,
+        showDatePicker = domainState.isSelectingDate,
         isLoading = domainState.isLoading,
         errorMessage = domainState.error?.message?.toTextModel()
     )
@@ -260,12 +262,16 @@ class TrackerStateMapper {
         endIcon = endIcon,
         optionsState = CheckableItemOptionsState.TaskOptionsState(
             taskId = id,
-            priorityText = when (priority) {
+            priorityLabel = when (priority) {
                 TaskPriority.Low -> Res.string.low_priority.toTextModel()
                 TaskPriority.Medium -> Res.string.medium_priority.toTextModel()
                 TaskPriority.High -> Res.string.high_priority.toTextModel()
             },
-            showPriorityDropdown = taskEditingState?.isEditingPriority == true
+            showPriorityDropdown = taskEditingState?.isEditingPriority == true,
+            deadline = deadline,
+            deadlineLabel = createDeadlineLabel(),
+            showDeadlineDatePicker = taskEditingState?.isEditingDeadline == true,
+            deadlineDatePickerTitle = name.toTextModel(),
         ).takeIf { id == taskEditingState?.taskId } ?: CheckableItemOptionsState.Empty,
         autoFocus = id == taskIdToFocus,
         toggleEditingEvent = ToggleEditingTask(id),
@@ -306,4 +312,20 @@ class TrackerStateMapper {
         nextActionEvent = InsertHabitAfter(id),
         backspaceWhenEmptyEvent = backspaceWhenEmptyEvent
     )
+
+    // TODO: i18n
+    private fun Task.createDeadlineLabel(): TextModel {
+        val deadlineFormatter = LocalDate.Format {
+            monthNumber(Padding.NONE)
+            chars("/")
+            dayOfMonth(Padding.NONE)
+            chars("/")
+            year()
+        }
+        return if (deadline == null) {
+            Res.string.no_deadline.toTextModel()
+        } else {
+            TextModel.Resource(Res.string.deadline_label, deadline.format(deadlineFormatter))
+        }
+    }
 }

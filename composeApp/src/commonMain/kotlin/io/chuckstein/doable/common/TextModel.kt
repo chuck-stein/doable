@@ -44,7 +44,7 @@ fun String.toTextModel() = TextModel.Value(this)
 
 @Composable
 fun TextModel.resolveText(): String = when (this) {
-    is TextModel.Resource -> stringResource(resource, formatArgs)
+    is TextModel.Resource -> stringResource(resource, *formatArgs.toTypedArray())
     is TextModel.Value -> text
     is TextModel.Plural -> pluralStringResource(resource, quantity, formatArgs)
 }

@@ -35,6 +35,7 @@ import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentTaskName
 import io.chuckstein.doable.tracker.TrackerEvent.SavePendingChanges
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleBuildingHabit
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTask
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskDeadline
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleHabitPerformed
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleJournalEntryStarred
@@ -106,9 +107,10 @@ class TrackerStateEngine(
             is SaveCurrentTaskName -> scope.launch { saveTask(event.id) }
             is ClearTaskIdToFocus -> domainStateFlow.update { it.copy(taskIdToFocus = null) }
             is UpdateTaskPriority -> updateTaskPriority(scope, event.id, event.priority)
-            is UpdateTaskDeadline -> TODO()
+            is UpdateTaskDeadline -> updateTaskDeadline(scope, event.id, event.deadline)
             is ToggleEditingTask -> toggleEditingTask(event.id)
             is ToggleEditingTaskPriority -> toggleEditingTaskPriority()
+            is ToggleEditingTaskDeadline -> toggleEditingTaskDeadline()
 
             is AddTrackedHabit -> addTrackedHabit(scope)
             is InsertHabitAfter -> insertTrackedHabitAfter(event.otherHabitId, scope)
@@ -534,6 +536,24 @@ class TrackerStateEngine(
         }
     }
 
+    private fun updateTaskDeadline(scope: CoroutineScope, id: Long, deadline: LocalDate?) {
+        domainStateFlow.update { state ->
+            state.copy(
+                tasks = state.tasks.map { task ->
+                    if (task.id == id) task.copy(deadline = deadline) else task
+                }
+            )
+        }
+
+        scope.launch {
+            saveData {
+                currentDomainState.tasks.find { it.id == id }?.let { updatedTask ->
+                    dataSource.updateTask(updatedTask)
+                }
+            }
+        }
+    }
+
     private fun toggleEditingTask(id: Long) {
         domainStateFlow.update { state ->
             state.copy(
@@ -551,6 +571,16 @@ class TrackerStateEngine(
             state.copy(
                 taskEditingState = state.taskEditingState?.copy(
                     isEditingPriority = !state.taskEditingState.isEditingPriority
+                )
+            )
+        }
+    }
+
+    private fun toggleEditingTaskDeadline() {
+        domainStateFlow.update { state ->
+            state.copy(
+                taskEditingState = state.taskEditingState?.copy(
+                    isEditingDeadline = !state.taskEditingState.isEditingDeadline
                 )
             )
         }

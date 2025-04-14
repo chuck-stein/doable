@@ -91,7 +91,8 @@ enum class TaskPriority(val serializedName: String) {
 
 data class TaskEditingState(
     val taskId: Long,
-    val isEditingPriority: Boolean = false
+    val isEditingPriority: Boolean = false,
+    val isEditingDeadline: Boolean = false
 )
 
 fun Task.isCompletedAsOf(date: LocalDate) = dateCompleted != null && dateCompleted <= date

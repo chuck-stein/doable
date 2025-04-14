@@ -20,7 +20,7 @@ data class TrackerUiState(
     val days: List<TrackerDayState> = emptyList(),
     val previousDayButtonEnabled: Boolean = false,
     val nextDayButtonEnabled: Boolean = false,
-    val isDatePickerOpen: Boolean = false,
+    val showDatePicker: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: TextModel? = null
 ) {
@@ -113,10 +113,15 @@ sealed interface CheckableItemOptionsState {
 
     data class TaskOptionsState(
         val taskId: Long,
-        val priorityText: TextModel,
-        val showPriorityDropdown: Boolean
+        val priorityLabel: TextModel,
+        val showPriorityDropdown: Boolean,
+        val deadline: LocalDate?,
+        val deadlineLabel: TextModel,
+        val showDeadlineDatePicker: Boolean,
+        val deadlineDatePickerTitle: TextModel
     ) : CheckableItemOptionsState {
-        override val optionsShouldStayFocused = showPriorityDropdown
+        override val optionsShouldStayFocused = showPriorityDropdown || showDeadlineDatePicker
+        val deadlineUtcMillis = deadline?.atStartOfDayIn(TimeZone.UTC)?.toEpochMilliseconds()
     }
 
     data object HabitOptionsState : CheckableItemOptionsState
