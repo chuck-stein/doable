@@ -71,8 +71,10 @@ data class CheckableItemState(
     val name: TextModel = TextModel.empty,
     val metadata: CheckableItemMetadataState = CheckableItemMetadataState.Empty,
     val endIcon: IconState? = null,
+    val optionsState: CheckableItemOptionsState = CheckableItemOptionsState.Empty,
     val active: Boolean = true,
     val autoFocus: Boolean = false,
+    val toggleEditingEvent: TrackerEvent? = null,
     val updateNameEvent: ((String) -> TrackerEvent)? = null,
     val toggleCheckedEvent: TrackerEvent? = null,
     val endIconClickEvent: TrackerEvent? = null,
@@ -88,11 +90,11 @@ data class CheckableItemState(
 
 sealed interface CheckableItemMetadataState {
 
+    data object Empty : CheckableItemMetadataState
+
     data class TaskMetadataState(
         val tagsState: TagsState = TagsState(),
-        val deadline: TextModel = TextModel.empty,
         val priorityIcon: IconState? = null,
-        val showViewDetailsIcon: Boolean = true,
     ) : CheckableItemMetadataState
 
     data class HabitMetadataState(
@@ -100,8 +102,24 @@ sealed interface CheckableItemMetadataState {
         val frequency: TextModel = TextModel.empty,
         val trendIcon: IconState? = null
     ) : CheckableItemMetadataState
+}
 
-    data object Empty : CheckableItemMetadataState
+sealed interface CheckableItemOptionsState {
+
+    val optionsShouldStayFocused: Boolean
+        get() = false
+
+    data object Empty : CheckableItemOptionsState
+
+    data class TaskOptionsState(
+        val taskId: Long,
+        val priorityText: TextModel,
+        val showPriorityDropdown: Boolean
+    ) : CheckableItemOptionsState {
+        override val optionsShouldStayFocused = showPriorityDropdown
+    }
+
+    data object HabitOptionsState : CheckableItemOptionsState
 }
 
 data class TagsState(

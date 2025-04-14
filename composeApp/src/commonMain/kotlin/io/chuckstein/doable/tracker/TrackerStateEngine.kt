@@ -34,6 +34,8 @@ import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentHabitName
 import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentTaskName
 import io.chuckstein.doable.tracker.TrackerEvent.SavePendingChanges
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleBuildingHabit
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTask
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleHabitPerformed
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleJournalEntryStarred
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
@@ -46,7 +48,6 @@ import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskDeadline
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskName
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ViewHabitDetails
-import io.chuckstein.doable.tracker.TrackerEvent.ViewTaskDetails
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.coroutineScope
@@ -104,9 +105,10 @@ class TrackerStateEngine(
             is UpdateTaskName -> updateTaskName(event.id, event.name)
             is SaveCurrentTaskName -> scope.launch { saveTask(event.id) }
             is ClearTaskIdToFocus -> domainStateFlow.update { it.copy(taskIdToFocus = null) }
-            is UpdateTaskPriority -> TODO()
+            is UpdateTaskPriority -> updateTaskPriority(scope, event.id, event.priority)
             is UpdateTaskDeadline -> TODO()
-            is ViewTaskDetails -> TODO()
+            is ToggleEditingTask -> toggleEditingTask(event.id)
+            is ToggleEditingTaskPriority -> toggleEditingTaskPriority()
 
             is AddTrackedHabit -> addTrackedHabit(scope)
             is InsertHabitAfter -> insertTrackedHabitAfter(event.otherHabitId, scope)
@@ -511,6 +513,46 @@ class TrackerStateEngine(
                 dataSource.updateTask(task)
             }
             domainStateFlow.update { it.copy(pendingChanges = it.pendingChanges - PendingChange.Task(id)) }
+        }
+    }
+
+    private fun updateTaskPriority(scope: CoroutineScope, id: Long, priority: TaskPriority) {
+        domainStateFlow.update { state ->
+            state.copy(
+                tasks = state.tasks.map { task ->
+                    if (task.id == id) task.copy(priority = priority) else task
+                }
+            )
+        }
+
+        scope.launch {
+            saveData {
+                currentDomainState.tasks.find { it.id == id }?.let { updatedTask ->
+                    dataSource.updateTask(updatedTask)
+                }
+            }
+        }
+    }
+
+    private fun toggleEditingTask(id: Long) {
+        domainStateFlow.update { state ->
+            state.copy(
+                taskEditingState = when {
+                    state.taskEditingState == null -> TaskEditingState(id)
+                    state.taskEditingState.taskId == id -> null
+                    else -> state.taskEditingState
+                }
+            )
+        }
+    }
+
+    private fun toggleEditingTaskPriority() {
+        domainStateFlow.update { state ->
+            state.copy(
+                taskEditingState = state.taskEditingState?.copy(
+                    isEditingPriority = !state.taskEditingState.isEditingPriority
+                )
+            )
         }
     }
 

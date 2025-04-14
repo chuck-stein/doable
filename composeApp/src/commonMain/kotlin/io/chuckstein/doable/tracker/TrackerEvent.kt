@@ -19,7 +19,8 @@ sealed interface TrackerEvent {
     data object ClearTaskIdToFocus : TrackerEvent
     data class UpdateTaskPriority(val id: Long, val priority: TaskPriority) : TrackerEvent
     data class UpdateTaskDeadline(val id: Long, val deadline: LocalDate) : TrackerEvent
-    data class ViewTaskDetails(val id: Long) : TrackerEvent
+    data class ToggleEditingTask(val id: Long) : TrackerEvent
+    data object ToggleEditingTaskPriority : TrackerEvent
 
     data class UpdateJournalNote(val note: String) : TrackerEvent
     data object ToggleJournalEntryStarred : TrackerEvent

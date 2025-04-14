@@ -9,6 +9,9 @@ import doable.composeapp.generated.resources.habit_trend_up_cd
 import doable.composeapp.generated.resources.hide_habit_cd
 import doable.composeapp.generated.resources.hide_task_cd
 import doable.composeapp.generated.resources.hide_untracked_habits
+import doable.composeapp.generated.resources.high_priority
+import doable.composeapp.generated.resources.low_priority
+import doable.composeapp.generated.resources.medium_priority
 import doable.composeapp.generated.resources.resume_tracking_habit_cd
 import doable.composeapp.generated.resources.show_untracked_habits
 import doable.composeapp.generated.resources.stop_tracking_habit_cd
@@ -33,6 +36,7 @@ import io.chuckstein.doable.tracker.TrackerEvent.InsertHabitAfter
 import io.chuckstein.doable.tracker.TrackerEvent.InsertTaskAfter
 import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentHabitName
 import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentTaskName
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTask
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleHabitPerformed
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTaskCompleted
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTrackingHabit
@@ -40,6 +44,8 @@ import io.chuckstein.doable.tracker.TrackerEvent.UpdateHabitName
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskName
 import io.telereso.kmp.core.icons.resources.AddCircleOutline
 import io.telereso.kmp.core.icons.resources.Close
+import io.telereso.kmp.core.icons.resources.KeyboardDoubleArrowDown
+import io.telereso.kmp.core.icons.resources.KeyboardDoubleArrowUp
 import io.telereso.kmp.core.icons.resources.RemoveCircleOutline
 import io.telereso.kmp.core.icons.resources.TrendingDown
 import io.telereso.kmp.core.icons.resources.TrendingFlat
@@ -74,11 +80,13 @@ class TrackerStateMapper {
                         trackerDate,
                         domainState.tasks.filter { it.dateCreated <= trackerDate },
                         domainState.taskIdToFocus,
+                        domainState.taskEditingState,
                         habitsAndTasksAreCheckable
                     ),
                     journalTab = dayDetails.createJournalTab(
                         trackerDate,
                         domainState.tasks,
+                        domainState.taskEditingState,
                         habitsAndTasksAreCheckable
                     ),
                     habitsTab = dayDetails.createHabitsTab(
@@ -123,6 +131,7 @@ class TrackerStateMapper {
         date: LocalDate,
         tasks: List<Task>,
         taskIdToFocus: Long?,
+        taskEditingState: TaskEditingState?,
         tasksAreCheckable: Boolean
     ) = TasksTabState(
         tasks = tasks.map { task ->
@@ -131,6 +140,7 @@ class TrackerStateMapper {
                 endIcon = IconState(Icons.Close, Res.string.delete_task_cd.toTextModel())
                     .takeUnless { task.isCompletedAsOf(date) },
                 taskIdToFocus = taskIdToFocus,
+                taskEditingState = taskEditingState,
                 checkable = tasksAreCheckable
             )
         }
@@ -139,6 +149,7 @@ class TrackerStateMapper {
     private fun DayDetails.createJournalTab(
         date: LocalDate,
         allTasks: List<Task>,
+        taskEditingState: TaskEditingState?,
         habitsAndTasksAreCheckable: Boolean
     ) = JournalTabState(
         note = journalEntry.note.toTextModel(),
@@ -150,6 +161,7 @@ class TrackerStateMapper {
                     .takeIf { task.dateCompleted != date },
                 endIconClickEvent = HideTaskFromJournal(task.id)
                     .takeIf { task.dateCompleted != date },
+                taskEditingState = taskEditingState,
                 checkable = habitsAndTasksAreCheckable
             )
         },
@@ -232,14 +244,31 @@ class TrackerStateMapper {
         endIcon: IconState?,
         endIconClickEvent: TrackerEvent? = DeleteTask(id),
         taskIdToFocus: Long? = null,
+        taskEditingState: TaskEditingState?,
         checkable: Boolean
     ) = CheckableItemState(
         id = id,
         checked = isCompletedAsOf(date),
         name = name.toTextModel(),
-        metadata = CheckableItemMetadataState.Empty, // TODO: implement metadata for both tasks and habits
+        metadata = CheckableItemMetadataState.TaskMetadataState(
+            priorityIcon = when (priority) {
+                TaskPriority.Low -> IconState(Icons.KeyboardDoubleArrowDown, contentDescription = Res.string.low_priority.toTextModel())
+                TaskPriority.Medium -> null
+                TaskPriority.High -> IconState(Icons.KeyboardDoubleArrowUp, contentDescription = Res.string.high_priority.toTextModel())
+            }
+        ),
         endIcon = endIcon,
+        optionsState = CheckableItemOptionsState.TaskOptionsState(
+            taskId = id,
+            priorityText = when (priority) {
+                TaskPriority.Low -> Res.string.low_priority.toTextModel()
+                TaskPriority.Medium -> Res.string.medium_priority.toTextModel()
+                TaskPriority.High -> Res.string.high_priority.toTextModel()
+            },
+            showPriorityDropdown = taskEditingState?.isEditingPriority == true
+        ).takeIf { id == taskEditingState?.taskId } ?: CheckableItemOptionsState.Empty,
         autoFocus = id == taskIdToFocus,
+        toggleEditingEvent = ToggleEditingTask(id),
         updateNameEvent = { UpdateTaskName(id, it) },
         toggleCheckedEvent = ToggleTaskCompleted(id).takeIf { checkable },
         endIconClickEvent = endIconClickEvent,

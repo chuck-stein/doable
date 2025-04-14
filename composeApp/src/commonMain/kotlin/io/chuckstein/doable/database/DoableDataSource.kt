@@ -5,6 +5,8 @@ import io.chuckstein.doable.database.adapters.dayOfWeekAdapter
 import io.chuckstein.doable.database.adapters.habitFrequencyAdapter
 import io.chuckstein.doable.database.adapters.habitTrendAdapter
 import io.chuckstein.doable.database.adapters.localDateAdapter
+import io.chuckstein.doable.database.adapters.taskPriorityAdapter
+import io.chuckstein.doable.tracker.TaskPriority
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -18,7 +20,8 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
         TaskAdapter = Task.Adapter(
             dateCreatedAdapter = localDateAdapter,
             dateCompletedAdapter = localDateAdapter,
-            deadlineAdapter = localDateAdapter
+            deadlineAdapter = localDateAdapter,
+            priorityAdapter = taskPriorityAdapter,
         ),
         HabitPerformedAdapter = HabitPerformed.Adapter(
             dateAdapter = localDateAdapter,
@@ -71,7 +74,7 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
     suspend fun insertTask(
         name: String,
         dateCreated: LocalDate,
-        priority: String = "MEDIUM", // TODO: use an enum
+        priority: TaskPriority = TaskPriority.Medium,
         deadline: LocalDate? = null
     ): Task = runQuery("insert task - $name") {
         database.transactionWithResult {

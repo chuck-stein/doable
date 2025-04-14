@@ -14,6 +14,9 @@
     <!-- Tasks Tab -->
     <string name="add_task">Add task</string>
     <string name="delete_task_cd">delete task</string>
+    <string name="low_priority">Low Priority</string>
+    <string name="medium_priority">Medium Priority</string>
+    <string name="high_priority">High Priority</string>
     <string name="show_older_tasks">SHOW OLDER TASKS</string>
     <string name="hide_older_tasks">HIDE OLDER TASKS</string>
 

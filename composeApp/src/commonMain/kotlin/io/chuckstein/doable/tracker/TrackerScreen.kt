@@ -1,19 +1,21 @@
 package io.chuckstein.doable.tracker
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring.DampingRatioNoBouncy
 import androidx.compose.animation.core.Spring.StiffnessLow
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandIn
+import androidx.compose.animation.shrinkOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -32,6 +34,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -46,7 +50,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,16 +63,17 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import doable.composeapp.generated.resources.Res
 import doable.composeapp.generated.resources.action_cancel
@@ -77,7 +81,10 @@ import doable.composeapp.generated.resources.action_confirm
 import doable.composeapp.generated.resources.add_habit
 import doable.composeapp.generated.resources.add_task
 import doable.composeapp.generated.resources.habits
+import doable.composeapp.generated.resources.high_priority
 import doable.composeapp.generated.resources.journal
+import doable.composeapp.generated.resources.low_priority
+import doable.composeapp.generated.resources.medium_priority
 import doable.composeapp.generated.resources.next_day_cd
 import doable.composeapp.generated.resources.no_tracked_habits_message
 import doable.composeapp.generated.resources.previous_day_cd
@@ -87,22 +94,30 @@ import io.chuckstein.doable.common.DoableIcon
 import io.chuckstein.doable.common.DoableIconButton
 import io.chuckstein.doable.common.EmptyIconButton
 import io.chuckstein.doable.common.Error
+import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.LoadingIndicator
 import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.common.isEmpty
+import io.chuckstein.doable.common.isKeyboardVisible
 import io.chuckstein.doable.common.resolveText
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.TaskMetadataState
+import io.chuckstein.doable.tracker.CheckableItemOptionsState.HabitOptionsState
+import io.chuckstein.doable.tracker.CheckableItemOptionsState.TaskOptionsState
 import io.chuckstein.doable.tracker.TrackerEvent.AddTask
 import io.chuckstein.doable.tracker.TrackerEvent.AddTrackedHabit
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateJournalNote
+import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskPriority
 import io.telereso.kmp.core.icons.resources.Add
 import io.telereso.kmp.core.icons.resources.ChevronLeft
 import io.telereso.kmp.core.icons.resources.ChevronRight
+import io.telereso.kmp.core.icons.resources.KeyboardDoubleArrowDown
+import io.telereso.kmp.core.icons.resources.KeyboardDoubleArrowUp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -133,7 +148,7 @@ fun TrackerScreen(state: TrackerUiState = TrackerUiState(), onEvent: (TrackerEve
                 }
 
                 DateNavigationBar(state, pagerState, onEvent)
-                HorizontalPager(pagerState) { index ->
+                HorizontalPager(pagerState, Modifier.weight(1f)) { index ->
                     DayTrackerCard(state.days[index], onEvent)
                 }
             }
@@ -236,17 +251,8 @@ private fun DayTrackerCard(state: TrackerDayState, onEvent: (TrackerEvent) -> Un
     val pagerState = rememberPagerState(initialPage = 1) { 3 }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    val density = LocalDensity.current
-    val keyboard = WindowInsets.ime
-    var openKeyboardBottomInset by remember { mutableStateOf(0) }
-    val currentKeyboardBottomInset by derivedStateOf { keyboard.getBottom(density) }
-    val keyboardIsVisible = currentKeyboardBottomInset > openKeyboardBottomInset / 2
+    val keyboardIsVisible = isKeyboardVisible()
 
-    if (currentKeyboardBottomInset > openKeyboardBottomInset) {
-        LaunchedEffect(Unit) {
-            openKeyboardBottomInset = currentKeyboardBottomInset
-        }
-    }
     LaunchedEffect(pagerState.currentPage) {
         focusManager.clearFocus()
     }
@@ -450,8 +456,22 @@ private fun HabitsTab(state: HabitsTabState, onEvent: (TrackerEvent) -> Unit) {
 
 @Composable
 private fun CheckableItem(state: CheckableItemState, modifier: Modifier = Modifier, onEvent: (TrackerEvent) -> Unit) {
+    val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
-    var nameFieldIsFocused by remember { mutableStateOf(false) }
+    var itemIsFocused by remember { mutableStateOf(false) }
+    val backgroundColor = if (itemIsFocused) focusedItemColor() else Color.Transparent
+    var keyboardIsVisible by remember { mutableStateOf(false) }
+    val keyboardIsNowVisible = isKeyboardVisible()
+
+    if (itemIsFocused && !state.optionsState.optionsShouldStayFocused && keyboardIsVisible && !keyboardIsNowVisible) {
+        LaunchedEffect(Unit) {
+            focusManager.clearFocus()
+        }
+    }
+
+    LaunchedEffect(keyboardIsNowVisible) {
+        keyboardIsVisible = keyboardIsNowVisible
+    }
 
     if (state.autoFocus) {
         LaunchedEffect(Unit) {
@@ -459,71 +479,139 @@ private fun CheckableItem(state: CheckableItemState, modifier: Modifier = Modifi
             state.autoFocusDoneEvent?.let(onEvent)
         }
     }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
+    Column(
+        Modifier
             .fillMaxWidth()
-            .padding(vertical = checkableItemVerticalPadding),
-    ) {
-        Checkbox(
-            checked = state.checked,
-            onCheckedChange = { state.toggleCheckedEvent?.let(onEvent) },
-            enabled = state.checkboxEnabled
-        )
-        BasicTextField(
-            value = state.name.resolveText(),
-            onValueChange = { state.updateNameEvent?.invoke(it)?.let(onEvent) },
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = state.textAlpha),
-                textDecoration = state.textDecoration
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(onNext = { state.nextActionEvent?.let(onEvent) }),
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester)
-                .onFocusChanged { newState: FocusState ->
-                    if (nameFieldIsFocused && !newState.isFocused) {
-                        state.loseFocusEvent?.let(onEvent)
-                    }
-                    nameFieldIsFocused = newState.isFocused
-                }.onKeyEvent { keyEvent ->
-                    if (state.name.isEmpty() && keyEvent.key == Key.Backspace) {
-                        state.backspaceWhenEmptyEvent?.let(onEvent)
-                        true
-                    } else {
-                        false
-                    }
+            .padding(vertical = checkableItemVerticalPadding)
+            .background(color = backgroundColor)
+            .onFocusChanged { newState: FocusState ->
+                val itemIsNowFocused = newState.isFocused || newState.hasFocus
+                if (itemIsFocused && !itemIsNowFocused) {
+                    state.loseFocusEvent?.let(onEvent)
+                    state.toggleEditingEvent?.let(onEvent)
+                } else if (!itemIsFocused && itemIsNowFocused) {
+                    state.toggleEditingEvent?.let(onEvent)
                 }
-        )
-        CheckableItemMetadata(state.metadata)
-        Crossfade(state.endIcon) { icon ->
-            if (icon == null) {
-                EmptyIconButton()
-            } else {
-                DoableIconButton(icon, onClick = { state.endIconClickEvent?.let(onEvent) })
+                itemIsFocused = itemIsNowFocused
+            },
+    ) {
+        AnimatedVisibility(
+            visible = state.optionsState != CheckableItemOptionsState.Empty,
+            enter = expandIn(expandFrom = Alignment.BottomCenter, initialSize = { IntSize(it.width, 0) }),
+            exit = shrinkOut(shrinkTowards = Alignment.BottomCenter, targetSize = { IntSize(it.width, 0) })
+        ) {
+            var latestOptionsState by remember { mutableStateOf(state.optionsState) }
+            if (state.optionsState != CheckableItemOptionsState.Empty) {
+                latestOptionsState = state.optionsState
+            }
+            CheckableItemOptions(latestOptionsState, onEvent)
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier.fillMaxWidth()
+        ) {
+            Checkbox(
+                checked = state.checked,
+                onCheckedChange = { state.toggleCheckedEvent?.let(onEvent) },
+                enabled = state.checkboxEnabled
+            )
+            BasicTextField(
+                value = state.name.resolveText(),
+                onValueChange = { state.updateNameEvent?.invoke(it)?.let(onEvent) },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = state.textAlpha),
+                    textDecoration = state.textDecoration
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(onNext = { state.nextActionEvent?.let(onEvent) }),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester)
+                    .onKeyEvent { keyEvent ->
+                        if (state.name.isEmpty() && keyEvent.key == Key.Backspace) {
+                            state.backspaceWhenEmptyEvent?.let(onEvent)
+                            true
+                        } else {
+                            false
+                        }
+                    }
+            )
+            CheckableItemMetadata(state.metadata)
+            Crossfade(state.endIcon) { icon ->
+                if (icon == null) {
+                    EmptyIconButton()
+                } else {
+                    DoableIconButton(icon, onClick = { state.endIconClickEvent?.let(onEvent) })
+                }
             }
         }
     }
 }
 
 @Composable
-fun CheckableItemMetadata(state: CheckableItemMetadataState) {
+private fun CheckableItemMetadata(state: CheckableItemMetadataState) {
     when (state) {
         is CheckableItemMetadataState.Empty -> {}
-        is HabitMetadataState -> {
-            Crossfade(state.trendIcon) { trendIcon ->
-                trendIcon?.let {
-                    DoableIcon(it, tint = MaterialTheme.colorScheme.secondary)
+        is TaskMetadataState -> MetadataIcon(state.priorityIcon)
+        is HabitMetadataState -> MetadataIcon(state.trendIcon)
+    }
+}
+
+@Composable
+private fun MetadataIcon(iconState: IconState?) {
+    Crossfade(iconState) { state ->
+        state?.let {
+            DoableIcon(it, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun CheckableItemOptions(state: CheckableItemOptionsState, onEvent: (TrackerEvent) -> Unit) {
+    when (state) {
+        is CheckableItemOptionsState.Empty -> {}
+        is TaskOptionsState -> TaskOptionsBar(state, onEvent)
+        is HabitOptionsState -> {} // TODO
+    }
+}
+
+@Composable
+private fun TaskOptionsBar(state: TaskOptionsState, onEvent: (TrackerEvent) -> Unit) {
+    Surface(Modifier.fillMaxWidth(), color = focusedItemColor()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            Box {
+                TextButton(onClick = { onEvent(ToggleEditingTaskPriority) }) {
+                    Text(text = state.priorityText.resolveText())
+                }
+
+                DropdownMenu(
+                    expanded = state.showPriorityDropdown,
+                    onDismissRequest = { onEvent(ToggleEditingTaskPriority) }
+                ) {
+                    listOf(
+                        Triple(TaskPriority.High, Res.string.high_priority, Icons.KeyboardDoubleArrowUp),
+                        Triple(TaskPriority.Medium, Res.string.medium_priority, null),
+                        Triple(TaskPriority.Low, Res.string.low_priority, Icons.KeyboardDoubleArrowDown)
+                    ).forEach { (priority, label, icon) ->
+
+                        DropdownMenuItem(
+                            text = { Text(stringResource(label)) },
+                            trailingIcon = icon?.let {
+                                { Icon(painterResource(it), contentDescription = null) }
+                            },
+                            onClick = {
+                                onEvent(UpdateTaskPriority(state.taskId, priority))
+                                onEvent(ToggleEditingTaskPriority)
+                            }
+                        )
+                    }
                 }
             }
         }
-        is TaskMetadataState -> TODO()
     }
 }
 
@@ -535,7 +623,7 @@ fun CheckableItemMetadata(state: CheckableItemMetadataState) {
  * @param text some non-editable text that will have the same appearance of the editable text of a [CheckableItem]
  */
 @Composable
-fun PseudoCheckableItem(leftSlot: @Composable () -> Unit, text: TextModel, modifier: Modifier = Modifier) {
+private fun PseudoCheckableItem(leftSlot: @Composable () -> Unit, text: TextModel, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -556,5 +644,8 @@ fun PseudoCheckableItem(leftSlot: @Composable () -> Unit, text: TextModel, modif
         EmptyIconButton()
     }
 }
+
+@Composable
+private fun focusedItemColor() = MaterialTheme.colorScheme.surfaceContainerHigh
 
 private val checkableItemVerticalPadding = 4.dp

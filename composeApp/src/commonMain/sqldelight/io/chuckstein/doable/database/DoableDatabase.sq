@@ -3,6 +3,7 @@ import kotlinx.datetime.LocalDate;
 import kotlinx.datetime.DayOfWeek;
 import io.chuckstein.doable.tracker.HabitFrequency;
 import io.chuckstein.doable.tracker.HabitTrend;
+import io.chuckstein.doable.tracker.TaskPriority;
 
 selectLastInsertRowId:
 SELECT last_insert_rowid();
@@ -49,7 +50,7 @@ CREATE TABLE Task (
   name TEXT NOT NULL,
   dateCreated TEXT AS LocalDate NOT NULL REFERENCES JournalEntry(date),
   dateCompleted TEXT AS LocalDate REFERENCES JournalEntry(date) DEFAULT NULL,
-  priority TEXT CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+  priority TEXT AS TaskPriority NOT NULL CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
   deadline TEXT AS LocalDate
 );
 

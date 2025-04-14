@@ -17,6 +17,7 @@ data class TrackerDomainState(
     val tasks: List<Task> = emptyList(),
     val taskIdToFocus: Long? = null,
     val habitIdToFocus: Long? = null,
+    val taskEditingState: TaskEditingState? = null,
     val pendingChanges: Set<PendingChange> = emptySet(),
     val isSelectingDate: Boolean = false,
     val isLoading: Boolean = true,
@@ -84,8 +85,13 @@ enum class HabitTrend(val serializedName: String) {
     Up("UP"), Down("DOWN"), Neutral("NEUTRAL"), None("NONE")
 }
 
-enum class TaskPriority {
-    Low, Medium, High
+enum class TaskPriority(val serializedName: String) {
+    Low("LOW"), Medium("MEDIUM"), High("HIGH")
 }
+
+data class TaskEditingState(
+    val taskId: Long,
+    val isEditingPriority: Boolean = false
+)
 
 fun Task.isCompletedAsOf(date: LocalDate) = dateCompleted != null && dateCompleted <= date
