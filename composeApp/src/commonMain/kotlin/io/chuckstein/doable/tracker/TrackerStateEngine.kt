@@ -7,6 +7,7 @@ import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.previousDays
 import io.chuckstein.doable.common.previousDaysInclusive
+import io.chuckstein.doable.common.taskUrgencyComparator
 import io.chuckstein.doable.common.today
 import io.chuckstein.doable.common.yesterday
 import io.chuckstein.doable.database.DataSourceException
@@ -142,7 +143,7 @@ class TrackerStateEngine(
                 TrackerDomainState(
                     isLoading = false,
                     error = null,
-                    tasks = dataSource.selectAllTasks().sortedBy { it.dateCompleted != null },
+                    tasks = dataSource.selectAllTasks().sortedWith(taskUrgencyComparator),
                     focusedDay = today(),
                     trackedDays = today().previousDaysInclusive(numDaysTracked),
                 ).run {
@@ -388,11 +389,26 @@ class TrackerStateEngine(
         )
     }
 
-    // very naive suggestion algo for now -- just pick the oldest task that's not completed
-    // TODO: have a more thoughtful approach to task suggestions
-    private fun Task.isSuggested(date: LocalDate, allTasks: List<Task>) = date == today() && allTasks
-        .filter { it.dateCompleted == null }
-        .minByOrNull { it.dateCreated }?.id == id
+    private fun Task.isSuggested(date: LocalDate, allTasks: List<Task>): Boolean {
+        if (date != today()) return false
+
+        if (deadline == today()) return true
+
+        val oldestHighPriorityTask = allTasks
+            .filter { it.priority == TaskPriority.High }
+            .minByOrNull { it.dateCreated }
+
+        if (this == oldestHighPriorityTask) return true
+
+        if (allTasks.none { it.deadline == today() }) {
+            return this == allTasks
+                .filter { it.dateCompleted == null }
+                .sortedWith(taskUrgencyComparator)
+                .firstOrNull()
+        }
+
+        return false
+    }
 
     private suspend fun TrackedHabit.isSuggested(date: LocalDate): Boolean {
         if (date != today()) return false

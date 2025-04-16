@@ -29,6 +29,7 @@ import doable.composeapp.generated.resources.stop_tracking_habit_cd
 import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
+import io.chuckstein.doable.common.isCompletedAsOf
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.toTextModel

@@ -94,5 +94,3 @@ data class TaskEditingState(
     val isEditingPriority: Boolean = false,
     val isEditingDeadline: Boolean = false
 )
-
-fun Task.isCompletedAsOf(date: LocalDate) = dateCompleted != null && dateCompleted <= date
