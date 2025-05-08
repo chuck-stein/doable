@@ -5,13 +5,13 @@ import kotlinx.datetime.DateTimeUnit.Companion.DAY
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
+import kotlinx.datetime.format.Padding
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 
 fun today() = Clock.System.todayIn(TimeZone.currentSystemDefault())
 fun yesterday() = today().previousDay()
-fun tomorrow() = today().nextDay()
 
 fun LocalDate.nextDay() = plus(1, DAY)
 fun LocalDate.previousDay() = minus(1, DAY)
@@ -35,3 +35,12 @@ operator fun OpenEndRange<LocalDate>.iterator() = generateSequence(start) { it.n
     .iterator()
 
 fun OpenEndRange<LocalDate>.asList() = iterator().asSequence().toList()
+
+// TODO: i18n
+val shortDateFormatter = LocalDate.Format {
+    monthNumber(Padding.NONE)
+    chars("/")
+    dayOfMonth(Padding.NONE)
+    chars("/")
+    year()
+}

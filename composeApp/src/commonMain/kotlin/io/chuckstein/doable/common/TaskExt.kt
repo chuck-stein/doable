@@ -13,6 +13,8 @@ fun Task.isDueThisWeekAsOf(date: LocalDate) = deadline != null && deadline in da
 
 fun Task.isOverdueAsOf(date: LocalDate) = deadline != null && deadline < date && !isCompletedAsOf(date)
 
+fun Task.wasOverdueButCompletedOn(date: LocalDate) = deadline != null && deadline < date && dateCompleted == date
+
 val taskUrgencyComparator = compareByDescending(nullsLast(), Task::dateCompleted)
     .thenBy(nullsLast()) { it.deadline?.takeUnlessOverAWeekFromNow() }
     .thenByDescending { it.priority }

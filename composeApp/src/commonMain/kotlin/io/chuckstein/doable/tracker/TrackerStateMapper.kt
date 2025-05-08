@@ -40,8 +40,10 @@ import io.chuckstein.doable.common.isOlderAsOf
 import io.chuckstein.doable.common.isOverdueAsOf
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
+import io.chuckstein.doable.common.shortDateFormatter
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.common.today
+import io.chuckstein.doable.common.wasOverdueButCompletedOn
 import io.chuckstein.doable.database.Task
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.TrackerEvent.ClearHabitIdToFocus
@@ -297,7 +299,7 @@ class TrackerStateMapper {
         checked = isCompletedAsOf(date),
         name = name.toTextModel(),
         infoText = createTaskInfoText(date),
-        infoTextColor = ColorModel.FromTheme { if (isOverdueAsOf(date)) error else tertiary },
+        infoTextColor = ColorModel.FromTheme { if (shouldShowOverdueInfoText(date)) error else tertiary },
         metadata = CheckableItemMetadataState.TaskMetadataState(
             priorityIcon = when (priority) {
                 TaskPriority.Low -> IconState(Icons.KeyboardDoubleArrowDown, contentDescription = Res.string.low_priority.toTextModel())
@@ -361,6 +363,7 @@ class TrackerStateMapper {
     )
 
     private fun Task.createTaskInfoText(date: LocalDate): TextModel? = when {
+        isOlderAsOf(date) -> dateCompleted?.format(shortDateFormatter)?.toTextModel()
         deadline == date -> Res.string.due_today.toTextModel()
         deadline == date.nextDay() -> Res.string.due_tomorrow.toTextModel()
         deadline?.dayOfWeek == DayOfWeek.MONDAY && isDueThisWeekAsOf(date) -> Res.string.due_monday.toTextModel()
@@ -370,28 +373,18 @@ class TrackerStateMapper {
         deadline?.dayOfWeek == DayOfWeek.FRIDAY && isDueThisWeekAsOf(date) -> Res.string.due_friday.toTextModel()
         deadline?.dayOfWeek == DayOfWeek.SATURDAY && isDueThisWeekAsOf(date) -> Res.string.due_saturday.toTextModel()
         deadline?.dayOfWeek == DayOfWeek.SUNDAY && isDueThisWeekAsOf(date) -> Res.string.due_sunday.toTextModel()
-        isOverdueAsOf(date) && deadline == date.previousDay() -> Res.string.due_yesterday.toTextModel()
-        isOverdueAsOf(date) && deadline != null -> {
+        shouldShowOverdueInfoText(date) && deadline == date.previousDay() -> Res.string.due_yesterday.toTextModel()
+        shouldShowOverdueInfoText(date) && deadline != null -> {
             val numDaysOverdue = deadline.daysUntil(date)
             TextModel.Plural(Res.plurals.due_n_days_ago, numDaysOverdue, numDaysOverdue)
         }
         else -> null
     }
 
-    // TODO: i18n
-    private fun Task.createDeadlineLabel(): TextModel {
-        val deadlineFormatter = LocalDate.Format {
-            monthNumber(Padding.NONE)
-            chars("/")
-            dayOfMonth(Padding.NONE)
-            chars("/")
-            year()
-        }
-        return if (deadline == null) {
-            Res.string.no_deadline.toTextModel()
-        } else {
-            TextModel.Resource(Res.string.deadline_label, deadline.format(deadlineFormatter))
-        }
+    private fun Task.createDeadlineLabel(): TextModel = if (deadline == null) {
+        Res.string.no_deadline.toTextModel()
+    } else {
+        TextModel.Resource(Res.string.deadline_label, deadline.format(shortDateFormatter))
     }
 
     private fun createVisibilityToggleIcon(isVisible: Boolean) = if (isVisible) {
@@ -399,4 +392,7 @@ class TrackerStateMapper {
     } else {
         IconState(Icons.Visibility, contentDescription = null)
     }
+
+    private fun Task.shouldShowOverdueInfoText(date: LocalDate) =
+        (isOverdueAsOf(date) || wasOverdueButCompletedOn(date)) && !isOlderAsOf(date)
 }
