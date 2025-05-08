@@ -34,16 +34,14 @@ import io.chuckstein.doable.common.ColorModel
 import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
-import io.chuckstein.doable.common.isCompleted
 import io.chuckstein.doable.common.isCompletedAsOf
+import io.chuckstein.doable.common.isDueThisWeekAsOf
 import io.chuckstein.doable.common.isOlderAsOf
 import io.chuckstein.doable.common.isOverdueAsOf
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.common.today
-import io.chuckstein.doable.common.tomorrow
-import io.chuckstein.doable.common.yesterday
 import io.chuckstein.doable.database.Task
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.TrackerEvent.ClearHabitIdToFocus
@@ -74,7 +72,6 @@ import io.telereso.kmp.core.icons.resources.TrendingFlat
 import io.telereso.kmp.core.icons.resources.TrendingUp
 import io.telereso.kmp.core.icons.resources.Visibility
 import io.telereso.kmp.core.icons.resources.VisibilityOff
-import kotlinx.datetime.DateTimeUnit.Companion.DAY
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -82,7 +79,6 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.DayOfWeekNames
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.Padding
-import kotlinx.datetime.plus
 
 class TrackerStateMapper {
 
@@ -300,7 +296,7 @@ class TrackerStateMapper {
         id = id,
         checked = isCompletedAsOf(date),
         name = name.toTextModel(),
-        infoText = createTaskInfoText(),
+        infoText = createTaskInfoText(date),
         infoTextColor = ColorModel.FromTheme { if (isOverdueAsOf(date)) error else tertiary },
         metadata = CheckableItemMetadataState.TaskMetadataState(
             priorityIcon = when (priority) {
@@ -364,25 +360,23 @@ class TrackerStateMapper {
         backspaceWhenEmptyEvent = backspaceWhenEmptyEvent
     )
 
-    private fun Task.createTaskInfoText(): TextModel? = when {
-        deadline == today() -> Res.string.due_today.toTextModel()
-        deadline == tomorrow() -> Res.string.due_tomorrow.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.MONDAY && deadline.isThisWeek() -> Res.string.due_monday.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.TUESDAY && deadline.isThisWeek() -> Res.string.due_tuesday.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.WEDNESDAY && deadline.isThisWeek() -> Res.string.due_wednesday.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.THURSDAY && deadline.isThisWeek() -> Res.string.due_thursday.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.FRIDAY && deadline.isThisWeek() -> Res.string.due_friday.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.SATURDAY && deadline.isThisWeek() -> Res.string.due_saturday.toTextModel()
-        deadline?.dayOfWeek == DayOfWeek.SUNDAY && deadline.isThisWeek() -> Res.string.due_sunday.toTextModel()
-        deadline == yesterday() && !isCompleted -> Res.string.due_yesterday.toTextModel()
-        deadline != null && deadline < yesterday() && !isCompleted -> {
-            val numDaysOverdue = deadline.daysUntil(today())
+    private fun Task.createTaskInfoText(date: LocalDate): TextModel? = when {
+        deadline == date -> Res.string.due_today.toTextModel()
+        deadline == date.nextDay() -> Res.string.due_tomorrow.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.MONDAY && isDueThisWeekAsOf(date) -> Res.string.due_monday.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.TUESDAY && isDueThisWeekAsOf(date) -> Res.string.due_tuesday.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.WEDNESDAY && isDueThisWeekAsOf(date) -> Res.string.due_wednesday.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.THURSDAY && isDueThisWeekAsOf(date) -> Res.string.due_thursday.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.FRIDAY && isDueThisWeekAsOf(date) -> Res.string.due_friday.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.SATURDAY && isDueThisWeekAsOf(date) -> Res.string.due_saturday.toTextModel()
+        deadline?.dayOfWeek == DayOfWeek.SUNDAY && isDueThisWeekAsOf(date) -> Res.string.due_sunday.toTextModel()
+        isOverdueAsOf(date) && deadline == date.previousDay() -> Res.string.due_yesterday.toTextModel()
+        isOverdueAsOf(date) && deadline != null -> {
+            val numDaysOverdue = deadline.daysUntil(date)
             TextModel.Plural(Res.plurals.due_n_days_ago, numDaysOverdue, numDaysOverdue)
         }
         else -> null
     }
-
-    private fun LocalDate.isThisWeek() = this in today() ..< today().plus(7, DAY)
 
     // TODO: i18n
     private fun Task.createDeadlineLabel(): TextModel {
