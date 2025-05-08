@@ -190,6 +190,7 @@ class TrackerStateMapper {
         isStarred = journalEntry.isStarred,
         journalTasks = journalTaskIds(allTasks).map { task ->
             task.toCheckableItemState(
+                onJournalTab = true,
                 date = date,
                 endIcon = IconState(Icons.VisibilityOff, Res.string.hide_task_cd.toTextModel())
                     .takeIf { task.dateCompleted != date },
@@ -201,6 +202,7 @@ class TrackerStateMapper {
         },
         journalHabits = journalHabitIds().map { habit ->
             habit.toCheckableItemState(
+                onJournalTab = true,
                 endIcon = IconState(Icons.VisibilityOff, Res.string.hide_habit_cd.toTextModel())
                     .takeIf { !habit.wasPerformed },
                 endIconClickEvent = HideHabitFromJournal(habit.id)
@@ -279,6 +281,7 @@ class TrackerStateMapper {
     ).takeIf { untrackedHabits.isNotEmpty() }
 
     private fun Task.toCheckableItemState(
+        onJournalTab: Boolean = false,
         date: LocalDate,
         endIcon: IconState?,
         endIconClickEvent: TrackerEvent? = DeleteTask(id),
@@ -319,11 +322,12 @@ class TrackerStateMapper {
         endIconClickEvent = endIconClickEvent,
         loseFocusEvent = SaveCurrentTaskName(id),
         autoFocusDoneEvent = ClearTaskIdToFocus,
-        nextActionEvent = InsertTaskAfter(id),
+        nextActionEvent = InsertTaskAfter(id).takeUnless { onJournalTab },
         backspaceWhenEmptyEvent = DeleteTaskAndMoveFocus(id)
     )
 
     private fun TrackedHabit.toCheckableItemState(
+        onJournalTab: Boolean = false,
         endIcon: IconState?,
         endIconClickEvent: TrackerEvent?,
         habitIdToFocus: Long? = null,
@@ -348,7 +352,7 @@ class TrackerStateMapper {
         endIconClickEvent = endIconClickEvent,
         loseFocusEvent = SaveCurrentHabitName(id),
         autoFocusDoneEvent = ClearHabitIdToFocus,
-        nextActionEvent = InsertHabitAfter(id),
+        nextActionEvent = InsertHabitAfter(id).takeUnless { onJournalTab },
         backspaceWhenEmptyEvent = backspaceWhenEmptyEvent
     )
 

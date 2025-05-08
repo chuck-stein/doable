@@ -559,7 +559,7 @@ private fun CheckableItem(state: CheckableItemState, modifier: Modifier = Modifi
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Next
+                        imeAction = if (state.nextActionEvent != null) ImeAction.Next else ImeAction.Unspecified
                     ),
                     keyboardActions = KeyboardActions(onNext = { state.nextActionEvent?.let(onEvent) }),
                     modifier = Modifier
