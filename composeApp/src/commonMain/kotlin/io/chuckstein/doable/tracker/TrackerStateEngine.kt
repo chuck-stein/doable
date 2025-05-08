@@ -502,7 +502,7 @@ class TrackerStateEngine(
             state.copy(
                 tasks = state.tasks.map { task ->
                     if (task.id == id) {
-                        task.copy(dateCompleted = if (task.dateCompleted == null) state.focusedDay else null)
+                        task.copy(dateCompleted = if (!task.isCompletedAsOf(state.focusedDay)) state.focusedDay else null)
                     } else {
                         task
                     }
