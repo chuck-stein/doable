@@ -2,15 +2,9 @@ package io.chuckstein.doable.tracker
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
-import doable.composeapp.generated.resources.Res
-import doable.composeapp.generated.resources.show_older_tasks
-import doable.composeapp.generated.resources.show_untracked_habits
 import io.chuckstein.doable.common.IconState
-import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
-import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.tracker.TrackerEvent.ChangeFocusedDay
-import io.telereso.kmp.core.icons.resources.Visibility
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -43,7 +37,8 @@ data class TrackerDayState(
 
 data class TasksTabState(
     val tasks: List<CheckableItemState> = emptyList(),
-    val bottomButtonText: TextModel = Res.string.show_older_tasks.toTextModel()
+    val toggleViewOlderTasksButtonState: IconButtonState? = null,
+    val olderTasks: List<CheckableItemState> = emptyList()
 )
 
 data class JournalTabState(
@@ -56,13 +51,13 @@ data class JournalTabState(
 data class HabitsTabState(
     val trackedHabits: List<CheckableItemState> = emptyList(),
     val showAddHabitButton: Boolean = true,
-    val toggleViewUntrackedHabitsButtonState: ToggleViewUntrackedHabitsButtonState? = null,
+    val toggleViewUntrackedHabitsButtonState: IconButtonState? = null,
     val untrackedHabits: List<CheckableItemState> = emptyList(),
 )
 
-data class ToggleViewUntrackedHabitsButtonState(
-    val icon: IconState = IconState(Icons.Visibility, contentDescription = null),
-    val text: TextModel = Res.string.show_untracked_habits.toTextModel(),
+data class IconButtonState(
+    val icon: IconState,
+    val text: TextModel
 )
 
 data class CheckableItemState(

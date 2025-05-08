@@ -17,6 +17,7 @@ import doable.composeapp.generated.resources.habit_trend_down_cd
 import doable.composeapp.generated.resources.habit_trend_neutral_cd
 import doable.composeapp.generated.resources.habit_trend_up_cd
 import doable.composeapp.generated.resources.hide_habit_cd
+import doable.composeapp.generated.resources.hide_older_tasks
 import doable.composeapp.generated.resources.hide_task_cd
 import doable.composeapp.generated.resources.hide_untracked_habits
 import doable.composeapp.generated.resources.high_priority
@@ -24,12 +25,14 @@ import doable.composeapp.generated.resources.low_priority
 import doable.composeapp.generated.resources.medium_priority
 import doable.composeapp.generated.resources.no_deadline
 import doable.composeapp.generated.resources.resume_tracking_habit_cd
+import doable.composeapp.generated.resources.show_older_tasks
 import doable.composeapp.generated.resources.show_untracked_habits
 import doable.composeapp.generated.resources.stop_tracking_habit_cd
 import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.common.isCompletedAsOf
+import io.chuckstein.doable.common.isOlderAsOf
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.toTextModel
@@ -92,7 +95,7 @@ class TrackerStateMapper {
             } else {
                 TrackerDayState(
                     date = trackerDate,
-                    tasksTab = createTasksTab(
+                    tasksTab = dayDetails.createTasksTab(
                         trackerDate,
                         domainState.tasks.filter { it.dateCreated <= trackerDate },
                         domainState.taskIdToFocus,
@@ -143,23 +146,38 @@ class TrackerStateMapper {
         return format(formatter).toTextModel()
     }
 
-    private fun createTasksTab(
+    private fun DayDetails.createTasksTab(
         date: LocalDate,
         tasks: List<Task>,
         taskIdToFocus: Long?,
         taskEditingState: TaskEditingState?,
         tasksAreCheckable: Boolean
     ) = TasksTabState(
-        tasks = tasks.map { task ->
-            task.toCheckableItemState(
-                date = date,
-                endIcon = IconState(Icons.Close, Res.string.delete_task_cd.toTextModel())
-                    .takeUnless { task.isCompletedAsOf(date) },
-                taskIdToFocus = taskIdToFocus,
-                taskEditingState = taskEditingState,
-                checkable = tasksAreCheckable
-            )
-        }
+        tasks = tasks
+            .filterNot { it.isOlderAsOf(date) }
+            .map { task ->
+                task.toCheckableItemState(
+                    date = date,
+                    endIcon = IconState(Icons.Close, Res.string.delete_task_cd.toTextModel())
+                        .takeUnless { task.isCompletedAsOf(date) },
+                    taskIdToFocus = taskIdToFocus,
+                    taskEditingState = taskEditingState,
+                    checkable = tasksAreCheckable
+                )
+            },
+        toggleViewOlderTasksButtonState = createToggleViewOlderTasksButton(date, tasks),
+        olderTasks = tasks
+            .filter { viewingOlderTasks && it.isOlderAsOf(date) }
+            .map { task ->
+                task.toCheckableItemState(
+                    date = date,
+                    endIcon = null,
+                    taskIdToFocus = taskIdToFocus,
+                    taskEditingState = taskEditingState,
+                    checkable = false,
+                    taskOptionsEnabled = false
+                )
+            },
     )
 
     private fun DayDetails.createJournalTab(
@@ -220,7 +238,7 @@ class TrackerStateMapper {
             )
         },
         showAddHabitButton = date == today(),
-        toggleViewUntrackedHabitsButtonState = createToggleViewUntrackedHabitsButton().takeIf { untrackedHabits.isNotEmpty() },
+        toggleViewUntrackedHabitsButtonState = createToggleViewUntrackedHabitsButton(),
         untrackedHabits = if (viewingUntrackedHabits) {
             untrackedHabits.map { habit ->
                 CheckableItemState(
@@ -242,18 +260,23 @@ class TrackerStateMapper {
         }
     )
 
-    private fun DayDetails.createToggleViewUntrackedHabitsButton() = ToggleViewUntrackedHabitsButtonState(
-        icon = if (viewingUntrackedHabits) {
-            IconState(Icons.VisibilityOff, contentDescription = null)
+    private fun DayDetails.createToggleViewOlderTasksButton(date: LocalDate, tasks: List<Task>) = IconButtonState(
+        icon = createVisibilityToggleIcon(isVisible = viewingOlderTasks),
+        text = if (viewingOlderTasks) {
+            Res.string.hide_older_tasks.toTextModel()
         } else {
-            IconState(Icons.Visibility, contentDescription = null)
-        },
+            Res.string.show_older_tasks.toTextModel()
+        }
+    ).takeIf { tasks.any { it.isOlderAsOf(date) } }
+
+    private fun DayDetails.createToggleViewUntrackedHabitsButton() = IconButtonState(
+        icon = createVisibilityToggleIcon(isVisible = viewingUntrackedHabits),
         text = if (viewingUntrackedHabits) {
             Res.string.hide_untracked_habits.toTextModel()
         } else {
             Res.string.show_untracked_habits.toTextModel()
         }
-    )
+    ).takeIf { untrackedHabits.isNotEmpty() }
 
     private fun Task.toCheckableItemState(
         date: LocalDate,
@@ -261,7 +284,8 @@ class TrackerStateMapper {
         endIconClickEvent: TrackerEvent? = DeleteTask(id),
         taskIdToFocus: Long? = null,
         taskEditingState: TaskEditingState?,
-        checkable: Boolean
+        checkable: Boolean,
+        taskOptionsEnabled: Boolean = true
     ) = CheckableItemState(
         id = id,
         checked = isCompletedAsOf(date),
@@ -287,7 +311,7 @@ class TrackerStateMapper {
             deadlineLabel = createDeadlineLabel(),
             showDeadlineDatePicker = taskEditingState?.isEditingDeadline == true,
             deadlineDatePickerTitle = name.toTextModel(),
-        ).takeIf { id == taskEditingState?.taskId } ?: CheckableItemOptionsState.Empty,
+        ).takeIf { taskOptionsEnabled && id == taskEditingState?.taskId } ?: CheckableItemOptionsState.Empty,
         autoFocus = id == taskIdToFocus,
         toggleEditingEvent = ToggleEditingTask(id),
         updateNameEvent = { UpdateTaskName(id, it) },
@@ -357,5 +381,11 @@ class TrackerStateMapper {
         } else {
             TextModel.Resource(Res.string.deadline_label, deadline.format(deadlineFormatter))
         }
+    }
+
+    private fun createVisibilityToggleIcon(isVisible: Boolean) = if (isVisible) {
+        IconState(Icons.VisibilityOff, contentDescription = null)
+    } else {
+        IconState(Icons.Visibility, contentDescription = null)
     }
 }

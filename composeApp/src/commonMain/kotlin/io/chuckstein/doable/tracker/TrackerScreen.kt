@@ -101,6 +101,7 @@ import io.chuckstein.doable.common.DoableIconButton
 import io.chuckstein.doable.common.EmptyIconButton
 import io.chuckstein.doable.common.Error
 import io.chuckstein.doable.common.IconState
+import io.chuckstein.doable.common.IconTextButton
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.LoadingIndicator
 import io.chuckstein.doable.common.TextModel
@@ -117,6 +118,7 @@ import io.chuckstein.doable.tracker.TrackerEvent.AddTrackedHabit
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskDeadline
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingOlderTasks
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateJournalNote
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateTaskDeadline
@@ -362,6 +364,17 @@ private fun TasksTab(state: TasksTabState, onEvent: (TrackerEvent) -> Unit) {
                 modifier = Modifier.clickable { onEvent(AddTask) }
             )
         }
+        state.toggleViewOlderTasksButtonState?.let { buttonState ->
+            item {
+                IconTextButton(buttonState, Modifier.padding(top = checkableItemListButtonTopPadding)) {
+                    onEvent(ToggleViewingOlderTasks)
+                }
+            }
+        }
+        items(state.olderTasks, key = { it.id }) { task ->
+            // TODO: when one first appears (due to older tasks becoming toggled), scroll to it... see similar comment below about untracked habits
+            CheckableItem(task, Modifier.animateItem(), onEvent)
+        }
     }
 }
 
@@ -462,12 +475,8 @@ private fun HabitsTab(state: HabitsTabState, onEvent: (TrackerEvent) -> Unit) {
         }
         state.toggleViewUntrackedHabitsButtonState?.let { buttonState ->
             item {
-                TextButton(
-                    onClick = { onEvent(ToggleViewingUntrackedHabits) },
-                    modifier = Modifier.padding(top = 24.dp)
-                ) {
-                    DoableIcon(buttonState.icon, Modifier.padding(start = 2.dp, end = 10.dp))
-                    Text(buttonState.text.resolveText())
+                IconTextButton(buttonState,  Modifier.padding(top = checkableItemListButtonTopPadding)) {
+                    onEvent(ToggleViewingUntrackedHabits)
                 }
             }
         }
@@ -761,3 +770,4 @@ private fun PseudoCheckableItem(leftSlot: @Composable () -> Unit, text: TextMode
 private fun focusedItemColor() = MaterialTheme.colorScheme.surfaceContainerHigh
 
 private val checkableItemVerticalPadding = 4.dp
+private val checkableItemListButtonTopPadding = 24.dp

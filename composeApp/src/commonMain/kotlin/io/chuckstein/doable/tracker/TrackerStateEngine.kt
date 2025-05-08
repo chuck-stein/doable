@@ -43,6 +43,7 @@ import io.chuckstein.doable.tracker.TrackerEvent.ToggleJournalEntryStarred
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTaskCompleted
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleTrackingHabit
+import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingOlderTasks
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleViewingUntrackedHabits
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateHabitName
 import io.chuckstein.doable.tracker.TrackerEvent.UpdateJournalNote
@@ -112,6 +113,7 @@ class TrackerStateEngine(
             is ToggleEditingTask -> toggleEditingTask(event.id)
             is ToggleEditingTaskPriority -> toggleEditingTaskPriority()
             is ToggleEditingTaskDeadline -> toggleEditingTaskDeadline()
+            is ToggleViewingOlderTasks -> toggleViewingOlderTasks()
 
             is AddTrackedHabit -> addTrackedHabit(scope)
             is InsertHabitAfter -> insertTrackedHabitAfter(event.otherHabitId, scope)
@@ -599,6 +601,12 @@ class TrackerStateEngine(
                     isEditingDeadline = !state.taskEditingState.isEditingDeadline
                 )
             )
+        }
+    }
+
+    private fun toggleViewingOlderTasks() {
+        domainStateFlow.update {
+            it.updateFocusedDayDetails { copy(viewingOlderTasks = !viewingOlderTasks) }
         }
     }
 

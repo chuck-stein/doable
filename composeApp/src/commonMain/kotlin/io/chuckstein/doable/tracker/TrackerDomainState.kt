@@ -44,6 +44,7 @@ data class DayDetails(
     val trackedHabits: List<TrackedHabit> = emptyList(),
     val untrackedHabits: List<Habit> = emptyList(),
     val viewingUntrackedHabits: Boolean = false,
+    val viewingOlderTasks: Boolean = false,
     val error: TrackerError? = null
 ) {
     fun journalTaskIds(allTasks: List<Task>) = journalTaskIds.mapNotNull { id -> allTasks.find { it.id == id } }

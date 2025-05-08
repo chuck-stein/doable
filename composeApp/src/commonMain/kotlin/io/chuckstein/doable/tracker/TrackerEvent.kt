@@ -22,6 +22,7 @@ sealed interface TrackerEvent {
     data class ToggleEditingTask(val id: Long) : TrackerEvent
     data object ToggleEditingTaskPriority : TrackerEvent
     data object ToggleEditingTaskDeadline : TrackerEvent
+    data object ToggleViewingOlderTasks : TrackerEvent
 
     data class UpdateJournalNote(val note: String) : TrackerEvent
     data object ToggleJournalEntryStarred : TrackerEvent

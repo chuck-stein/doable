@@ -7,6 +7,8 @@ import kotlinx.datetime.plus
 
 fun Task.isCompletedAsOf(date: LocalDate) = dateCompleted != null && dateCompleted <= date
 
+fun Task.isOlderAsOf(date: LocalDate) = isCompletedAsOf(date.previousDay())
+
 val taskUrgencyComparator = compareByDescending(nullsLast(), Task::dateCompleted)
     .thenBy(nullsLast()) { it.deadline?.takeUnlessOverAWeekFromNow() }
     .thenByDescending { it.priority }
