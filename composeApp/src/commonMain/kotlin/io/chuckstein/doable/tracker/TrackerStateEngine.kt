@@ -3,6 +3,8 @@ package io.chuckstein.doable.tracker
 import co.touchlab.kermit.Logger
 import io.chuckstein.doable.common.asList
 import io.chuckstein.doable.common.avgNumDaysBetweenDates
+import io.chuckstein.doable.common.isCompletedAsOf
+import io.chuckstein.doable.common.isOverdueAsOf
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.previousDays
@@ -394,7 +396,9 @@ class TrackerStateEngine(
     private fun Task.isSuggested(date: LocalDate, allTasks: List<Task>): Boolean {
         if (date != today()) return false
 
-        if (deadline == today()) return true
+        if (deadline == date) return true
+
+        if (isOverdueAsOf(date)) return true
 
         val oldestHighPriorityTask = allTasks
             .filter { it.priority == TaskPriority.High }
@@ -402,9 +406,9 @@ class TrackerStateEngine(
 
         if (this == oldestHighPriorityTask) return true
 
-        if (allTasks.none { it.deadline == today() }) {
+        if (allTasks.none { it.deadline == date || isOverdueAsOf(date) }) {
             return this == allTasks
-                .filter { it.dateCompleted == null }
+                .filterNot { it.isCompletedAsOf(date) }
                 .sortedWith(taskUrgencyComparator)
                 .firstOrNull()
         }

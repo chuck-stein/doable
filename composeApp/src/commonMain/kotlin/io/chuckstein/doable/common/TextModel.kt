@@ -46,7 +46,7 @@ fun String.toTextModel() = TextModel.Value(this)
 fun TextModel.resolveText(): String = when (this) {
     is TextModel.Resource -> stringResource(resource, *formatArgs.toTypedArray())
     is TextModel.Value -> text
-    is TextModel.Plural -> pluralStringResource(resource, quantity, formatArgs)
+    is TextModel.Plural -> pluralStringResource(resource, quantity, *formatArgs.toTypedArray())
 }
 
 fun TextModel.isEmpty() = this is TextModel.Value && text.isEmpty()

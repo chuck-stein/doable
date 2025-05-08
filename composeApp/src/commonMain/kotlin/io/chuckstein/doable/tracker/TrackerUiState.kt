@@ -2,6 +2,7 @@ package io.chuckstein.doable.tracker
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
+import io.chuckstein.doable.common.ColorModel
 import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.tracker.TrackerEvent.ChangeFocusedDay
@@ -65,6 +66,7 @@ data class CheckableItemState(
     val checked: Boolean = false,
     val name: TextModel = TextModel.empty,
     val infoText: TextModel? = null,
+    val infoTextColor: ColorModel = ColorModel.FromTheme { tertiary },
     val metadata: CheckableItemMetadataState = CheckableItemMetadataState.Empty,
     val endIcon: IconState? = null,
     val optionsState: CheckableItemOptionsState = CheckableItemOptionsState.Empty,

@@ -6,6 +6,7 @@ import doable.composeapp.generated.resources.delete_habit_cd
 import doable.composeapp.generated.resources.delete_task_cd
 import doable.composeapp.generated.resources.due_friday
 import doable.composeapp.generated.resources.due_monday
+import doable.composeapp.generated.resources.due_n_days_ago
 import doable.composeapp.generated.resources.due_saturday
 import doable.composeapp.generated.resources.due_sunday
 import doable.composeapp.generated.resources.due_thursday
@@ -13,6 +14,7 @@ import doable.composeapp.generated.resources.due_today
 import doable.composeapp.generated.resources.due_tomorrow
 import doable.composeapp.generated.resources.due_tuesday
 import doable.composeapp.generated.resources.due_wednesday
+import doable.composeapp.generated.resources.due_yesterday
 import doable.composeapp.generated.resources.habit_trend_down_cd
 import doable.composeapp.generated.resources.habit_trend_neutral_cd
 import doable.composeapp.generated.resources.habit_trend_up_cd
@@ -28,16 +30,20 @@ import doable.composeapp.generated.resources.resume_tracking_habit_cd
 import doable.composeapp.generated.resources.show_older_tasks
 import doable.composeapp.generated.resources.show_untracked_habits
 import doable.composeapp.generated.resources.stop_tracking_habit_cd
+import io.chuckstein.doable.common.ColorModel
 import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
 import io.chuckstein.doable.common.TextModel
+import io.chuckstein.doable.common.isCompleted
 import io.chuckstein.doable.common.isCompletedAsOf
 import io.chuckstein.doable.common.isOlderAsOf
+import io.chuckstein.doable.common.isOverdueAsOf
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.common.today
 import io.chuckstein.doable.common.tomorrow
+import io.chuckstein.doable.common.yesterday
 import io.chuckstein.doable.database.Task
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.TrackerEvent.ClearHabitIdToFocus
@@ -71,6 +77,7 @@ import io.telereso.kmp.core.icons.resources.VisibilityOff
 import kotlinx.datetime.DateTimeUnit.Companion.DAY
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DayOfWeekNames
 import kotlinx.datetime.format.MonthNames
@@ -294,6 +301,7 @@ class TrackerStateMapper {
         checked = isCompletedAsOf(date),
         name = name.toTextModel(),
         infoText = createTaskInfoText(),
+        infoTextColor = ColorModel.FromTheme { if (isOverdueAsOf(date)) error else tertiary },
         metadata = CheckableItemMetadataState.TaskMetadataState(
             priorityIcon = when (priority) {
                 TaskPriority.Low -> IconState(Icons.KeyboardDoubleArrowDown, contentDescription = Res.string.low_priority.toTextModel())
@@ -366,6 +374,11 @@ class TrackerStateMapper {
         deadline?.dayOfWeek == DayOfWeek.FRIDAY && deadline.isThisWeek() -> Res.string.due_friday.toTextModel()
         deadline?.dayOfWeek == DayOfWeek.SATURDAY && deadline.isThisWeek() -> Res.string.due_saturday.toTextModel()
         deadline?.dayOfWeek == DayOfWeek.SUNDAY && deadline.isThisWeek() -> Res.string.due_sunday.toTextModel()
+        deadline == yesterday() && !isCompleted -> Res.string.due_yesterday.toTextModel()
+        deadline != null && deadline < yesterday() && !isCompleted -> {
+            val numDaysOverdue = deadline.daysUntil(today())
+            TextModel.Plural(Res.plurals.due_n_days_ago, numDaysOverdue, numDaysOverdue)
+        }
         else -> null
     }
 

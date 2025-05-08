@@ -107,6 +107,7 @@ import io.chuckstein.doable.common.LoadingIndicator
 import io.chuckstein.doable.common.TextModel
 import io.chuckstein.doable.common.isEmpty
 import io.chuckstein.doable.common.isKeyboardVisible
+import io.chuckstein.doable.common.resolve
 import io.chuckstein.doable.common.resolveText
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
@@ -578,7 +579,7 @@ private fun CheckableItem(state: CheckableItemState, modifier: Modifier = Modifi
                     Text(
                         text = it.resolveText(),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = state.infoTextColor.resolve().copy(alpha = state.textAlpha)
                     )
                 }
             }

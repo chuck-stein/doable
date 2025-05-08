@@ -22,6 +22,11 @@
     <string name="high_priority">High priority</string>
     <string name="no_deadline">No deadline</string>
     <string name="deadline_label">Deadline: %1$s</string>
+    <plurals name="due_n_days_ago">
+        <item quantity="one">DUE %1$d DAY AGO</item>
+        <item quantity="other">DUE %1$d DAYS AGO</item>
+    </plurals>
+    <string name="due_yesterday">DUE YESTERDAY</string>
     <string name="due_today">DUE TODAY</string>
     <string name="due_tomorrow">DUE TOMORROW</string>
     <string name="due_monday">DUE MONDAY</string>
