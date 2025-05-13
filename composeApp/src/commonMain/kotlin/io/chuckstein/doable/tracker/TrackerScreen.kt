@@ -484,7 +484,7 @@ private fun HabitsTab(state: HabitsTabState, onEvent: (TrackerEvent) -> Unit) {
         items(state.trackedHabits, key = { it.id }) { habit ->
             CheckableItem(habit, Modifier.animateItem(), onEvent)
         }
-        if (state.trackedHabits.isEmpty()) {
+        if (state.showNoHabitsTrackedMessage) {
             item {
                 Text(
                     text = stringResource(Res.string.no_tracked_habits_message),

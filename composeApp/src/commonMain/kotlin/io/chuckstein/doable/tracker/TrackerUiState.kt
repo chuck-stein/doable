@@ -54,7 +54,9 @@ data class HabitsTabState(
     val showAddHabitButton: Boolean = true,
     val toggleViewUntrackedHabitsButtonState: IconButtonState? = null,
     val untrackedHabits: List<CheckableItemState> = emptyList(),
-)
+) {
+    val showNoHabitsTrackedMessage = trackedHabits.isEmpty() && !showAddHabitButton
+}
 
 data class IconButtonState(
     val icon: IconState,
