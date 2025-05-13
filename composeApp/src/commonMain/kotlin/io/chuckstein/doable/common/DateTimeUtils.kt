@@ -8,7 +8,10 @@ import kotlinx.datetime.daysUntil
 import kotlinx.datetime.format.Padding
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
+
+fun currentDateTime() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
 fun today() = Clock.System.todayIn(TimeZone.currentSystemDefault())
 fun yesterday() = today().previousDay()

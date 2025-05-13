@@ -85,9 +85,9 @@ import kotlinx.datetime.format.Padding
 class TrackerStateMapper {
 
     fun mapToUiState(domainState: TrackerDomainState) = TrackerUiState(
-        header = domainState.focusedDay.toHeaderText(),
+        header = domainState.focusedDay.toHeaderText(domainState.latestTrackedDay),
         previousDayButtonEnabled = domainState.focusedDay.previousDay() in domainState.trackedDays,
-        nextDayButtonEnabled = domainState.focusedDay.nextDay() in domainState.trackedDays,
+        nextDayButtonEnabled = domainState.focusedDay.nextDay() in domainState.trackedDays.plus(today()),
         days = domainState.trackedDays.mapIndexed { index, trackerDate ->
             val dayDetails = domainState.dayDetailsMap[trackerDate]
             val habitsAndTasksAreCheckable = index > domainState.trackedDays.lastIndex - 7
@@ -115,6 +115,7 @@ class TrackerStateMapper {
                     ),
                     habitsTab = dayDetails.createHabitsTab(
                         trackerDate,
+                        domainState.latestTrackedDay,
                         domainState.habitIdToFocus,
                         habitsAndTasksAreCheckable,
                         habitTrackingIsToggleable
@@ -123,14 +124,19 @@ class TrackerStateMapper {
                     isLoading = false
                 )
             }
+        }.let { trackedDays ->
+            if (domainState.latestTrackedDay < today()) {
+                trackedDays.plus(TrackerDayState(date = today(), isLoading = true))
+            } else trackedDays
         },
+        initialFocusedDayIndex = domainState.trackedDays.lastIndex,
         showDatePicker = domainState.isSelectingDate,
         isLoading = domainState.isLoading,
         errorMessage = domainState.error?.message?.toTextModel()
     )
 
     // TODO: i18n
-    private fun LocalDate.toHeaderText(): TextModel {
+    private fun LocalDate.toHeaderText(latestTrackedDay: LocalDate): TextModel {
         val formatter = LocalDate.Format {
             dayOfWeek(DayOfWeekNames.ENGLISH_FULL)
             chars(", ")
@@ -143,7 +149,7 @@ class TrackerStateMapper {
                 3, 23 -> chars("rd")
                 else -> chars("th")
             }
-            if (year != today().year) {
+            if (year != latestTrackedDay.year) {
                 chars(", ")
                 year()
             }
@@ -219,6 +225,7 @@ class TrackerStateMapper {
 
     private fun DayDetails.createHabitsTab(
         date: LocalDate,
+        latestTrackedDay: LocalDate,
         habitIdToFocus: Long?,
         habitsAreCheckable: Boolean,
         habitTrackingIsToggleable: Boolean
@@ -244,7 +251,7 @@ class TrackerStateMapper {
                 checkable = habitsAreCheckable
             )
         },
-        showAddHabitButton = date == today(),
+        showAddHabitButton = date == latestTrackedDay,
         toggleViewUntrackedHabitsButtonState = createToggleViewUntrackedHabitsButton(),
         untrackedHabits = if (viewingUntrackedHabits) {
             untrackedHabits.map { habit ->

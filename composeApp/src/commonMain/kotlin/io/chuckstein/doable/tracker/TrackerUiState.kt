@@ -13,6 +13,7 @@ import kotlinx.datetime.atStartOfDayIn
 data class TrackerUiState(
     val header: TextModel = TextModel.empty,
     val days: List<TrackerDayState> = emptyList(),
+    val initialFocusedDayIndex: Int = 0,
     val previousDayButtonEnabled: Boolean = false,
     val nextDayButtonEnabled: Boolean = false,
     val showDatePicker: Boolean = false,

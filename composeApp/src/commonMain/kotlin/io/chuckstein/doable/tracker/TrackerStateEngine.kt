@@ -3,6 +3,7 @@ package io.chuckstein.doable.tracker
 import co.touchlab.kermit.Logger
 import io.chuckstein.doable.common.asList
 import io.chuckstein.doable.common.avgNumDaysBetweenDates
+import io.chuckstein.doable.common.currentDateTime
 import io.chuckstein.doable.common.isCompletedAsOf
 import io.chuckstein.doable.common.isOlderAsOf
 import io.chuckstein.doable.common.isOverdueAsOf
@@ -140,27 +141,30 @@ class TrackerStateEngine(
                 fallback = { TrackerDomainState(error = FailedToLoad, isLoading = false) }
             ) {
                 createMissingJournalEntries()
-                dataSource.selectJournalDatesWithoutHabitStatuses().filter { it != today() }.sorted().forEach { date ->
-                    saveHabitStatuses(date)
-                }
+                dataSource.selectJournalDatesWithoutHabitStatuses()
+                    .filter { it != currentPerceivedDay() }
+                    .sorted()
+                    .forEach { date ->
+                        saveHabitStatuses(date)
+                    }
                 val firstJournalEntry = checkNotNull(dataSource.selectFirstJournalEntry())
-                val numDaysTracked = firstJournalEntry.date.daysUntil(today()) + 1
+                val numDaysTracked = firstJournalEntry.date.daysUntil(currentPerceivedDay()) + 1
                 TrackerDomainState(
                     isLoading = false,
                     error = null,
-                    tasks = dataSource.selectAllTasks().sortedWith(taskUrgencyComparator),
-                    focusedDay = today(),
-                    trackedDays = today().previousDaysInclusive(numDaysTracked),
+                    tasks = dataSource.selectAllTasks().sortedWith(taskUrgencyComparator(currentPerceivedDay())),
+                    focusedDay = currentPerceivedDay(),
+                    trackedDays = currentPerceivedDay().previousDaysInclusive(numDaysTracked),
                 ).run {
                     // build an intermediate state then use it to build the dayDetailsMap
                     copy(
-                        dayDetailsMap = if (firstJournalEntry.date < today()) {
+                        dayDetailsMap = if (firstJournalEntry.date < currentPerceivedDay()) {
                             mapOf(
-                                today() to getDayDetails(today()),
-                                yesterday() to getDayDetails(yesterday())
+                                currentPerceivedDay() to getDayDetails(currentPerceivedDay()),
+                                currentPerceivedDay().previousDay() to getDayDetails(currentPerceivedDay().previousDay())
                             )
                         } else {
-                            mapOf(today() to getDayDetails(today()))
+                            mapOf(currentPerceivedDay() to getDayDetails(currentPerceivedDay()))
                         }
                     )
                 }
@@ -171,14 +175,16 @@ class TrackerStateEngine(
     private suspend fun createMissingJournalEntries() {
         val latestJournalEntry = dataSource.selectLatestJournalEntry()
         when {
-            latestJournalEntry == null -> dataSource.insertJournalEntry(today())
-            latestJournalEntry.date != today() -> dataSource.insertJournalEntries(
-                dates = List(size = latestJournalEntry.date.daysUntil(today())) { index ->
+            latestJournalEntry == null -> dataSource.insertJournalEntry(currentPerceivedDay())
+            latestJournalEntry.date < currentPerceivedDay() -> dataSource.insertJournalEntries(
+                dates = List(size = latestJournalEntry.date.daysUntil(currentPerceivedDay())) { index ->
                     latestJournalEntry.date.plus(index + 1, DAY)
                 }
             )
         }
     }
+
+    private fun currentPerceivedDay() = if (currentDateTime().hour < 5) yesterday() else today()
 
     @OptIn(FlowPreview::class)
     private suspend fun observeJournalNote() {
@@ -315,11 +321,12 @@ class TrackerStateEngine(
         }
         scope.launch {
             savePendingChanges(previousFocusedDay)
+            if (date == today() && today() !in currentDomainState.trackedDays) {
+                initializeTodayInTracker()
+            }
             domainStateFlow.updateByReadingDataOrDefault(
                 fallback = {
-                    if (date in dayDetailsMap) this else copy(
-                        dayDetailsMap = dayDetailsMap + (date to DayDetails.error)
-                    )
+                    if (date in dayDetailsMap) this else copy(dayDetailsMap = dayDetailsMap + (date to DayDetails.error))
                 }
             ) {
                 copy(dayDetailsMap = dayDetailsMap + (date to getDayDetails(date)))
@@ -341,15 +348,28 @@ class TrackerStateEngine(
         }
     }
 
+    /**
+     * Special case -- if it is not yet 5 A.M. then today will not be initialized as part of [initializeTracker],
+     * because the user might not be finished tracking the previous day yet. They will need to manually navigate
+     * to today once ready, which will trigger this function to initialize it individually.
+     */
+    private suspend fun initializeTodayInTracker() {
+        saveData { dataSource.insertJournalEntry(today()) }
+        saveHabitStatuses(yesterday())
+        domainStateFlow.update {
+            it.copy(trackedDays = it.trackedDays.plus(today()))
+        }
+    }
+
     private suspend fun TrackerDomainState.getDayDetails(
         date: LocalDate
     ) = readDataOrDefault(fallback = { DayDetails.error }) {
         val journalEntry = dataSource.selectJournalEntryForDate(date) ?: return@readDataOrDefault DayDetails.error
         val habitsPerformed = dataSource.selectAllHabitIdsPerformedOnDate(date)
         val habits = dataSource.selectAllHabits()
-        val dateForHabitStatuses = if (date == today()) yesterday() else date
+        val dateForHabitStatuses = if (date == latestTrackedDay) latestTrackedDay.previousDay() else date
         val habitStatuses = dataSource.selectAllHabitStatusesForDate(dateForHabitStatuses).associateBy { it.habitId }
-        val trackedHabits = if (date == today()) {
+        val trackedHabits = if (date == latestTrackedDay) {
             habits.filter { it.currentlyTracking }.map { habit ->
                 TrackedHabit(
                     id = habit.id,
@@ -378,14 +398,14 @@ class TrackerStateEngine(
         return DayDetails(
             journalEntry = journalEntry,
             journalTaskIds = tasks
-                .filter { it.dateCompleted == date || it.isSuggested(date, tasks) }
+                .filter { it.dateCompleted == date || it.isSuggested(date, latestTrackedDay, tasks) }
                 .sortedByDescending { it.dateCompleted == date }
                 .map { it.id },
             journalHabitIds = trackedHabits
-                .filter { it.wasPerformed || it.isSuggested(date) }
+                .filter { it.wasPerformed || it.isSuggested(date, latestTrackedDay) }
                 .sortedByDescending { it.wasPerformed }
                 .map { it.id },
-            untrackedHabits = if (date == today()) {
+            untrackedHabits = if (date == latestTrackedDay) {
                 habits.filterNot { it.currentlyTracking }
             } else {
                 habits.filterNot { it.id in habitStatuses } // TODO: update if we need to allow inserting habits on past days
@@ -394,8 +414,8 @@ class TrackerStateEngine(
         )
     }
 
-    private fun Task.isSuggested(date: LocalDate, allTasks: List<Task>): Boolean {
-        if (date != today()) return false
+    private fun Task.isSuggested(date: LocalDate, latestTrackedDay: LocalDate, allTasks: List<Task>): Boolean {
+        if (date != latestTrackedDay) return false
 
         if (deadline == date && !isOlderAsOf(date)) return true
 
@@ -410,15 +430,15 @@ class TrackerStateEngine(
         if (allTasks.none { it.deadline == date || isOverdueAsOf(date) }) {
             return this == allTasks
                 .filterNot { it.isCompletedAsOf(date) }
-                .sortedWith(taskUrgencyComparator)
+                .sortedWith(taskUrgencyComparator(date))
                 .firstOrNull()
         }
 
         return false
     }
 
-    private suspend fun TrackedHabit.isSuggested(date: LocalDate): Boolean {
-        if (date != today()) return false
+    private suspend fun TrackedHabit.isSuggested(date: LocalDate, latestTrackedDay: LocalDate): Boolean {
+        if (date != latestTrackedDay) return false
 
         if (trend == HabitTrend.Down) return true
 
@@ -434,7 +454,7 @@ class TrackerStateEngine(
         val isOnlyDayOfWeekPerformed = mediumTermDayOfWeekPropensity > 0.3 && otherDaysOfWeekMediumTermPropensity.all { it == 0.0 }
         if (isOnlyDayOfWeekPerformed) return true
 
-        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(id, numDates = 3, referenceDate = today())
+        val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(id, numDates = 3, referenceDate = date)
         val numDaysSinceHabitPerformed = recentDatesHabitPerformed.firstOrNull()?.daysUntil(date) ?: Int.MAX_VALUE
         return when (frequency) {
             HabitFrequency.Daily -> numDaysSinceHabitPerformed >= 1

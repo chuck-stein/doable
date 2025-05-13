@@ -24,6 +24,7 @@ data class TrackerDomainState(
     val error: TrackerError? = null
 ) {
     val focusedDayDetails = dayDetailsMap[focusedDay] ?: DayDetails.error
+    val latestTrackedDay = trackedDays.lastOrNull() ?: today()
 }
 
 sealed interface TrackerError {

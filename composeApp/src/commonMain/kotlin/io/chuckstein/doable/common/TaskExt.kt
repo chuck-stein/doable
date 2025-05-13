@@ -15,9 +15,9 @@ fun Task.isOverdueAsOf(date: LocalDate) = deadline != null && deadline < date &&
 
 fun Task.wasOverdueButCompletedOn(date: LocalDate) = deadline != null && deadline < date && dateCompleted == date
 
-val taskUrgencyComparator = compareByDescending(nullsLast(), Task::dateCompleted)
-    .thenBy(nullsLast()) { it.deadline?.takeUnlessOverAWeekFromNow() }
+fun taskUrgencyComparator(date: LocalDate) = compareByDescending(nullsLast(), Task::dateCompleted)
+    .thenBy(nullsLast()) { it.deadline?.takeUnlessOverAWeekFrom(date) }
     .thenByDescending { it.priority }
     .thenBy(nullsLast(), Task::deadline)
 
-private fun LocalDate.takeUnlessOverAWeekFromNow() = takeUnless { it >= today().plus(7, DAY) }
+private fun LocalDate.takeUnlessOverAWeekFrom(date: LocalDate) = takeUnless { it >= date.plus(7, DAY) }
