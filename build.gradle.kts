@@ -1,4 +1,8 @@
 plugins {
+    // TODO: use libs.versions.toml
+    id("com.google.gms.google-services") version "4.4.2" apply false
+    id("com.google.firebase.crashlytics") version "3.0.3" apply false
+
     // this is necessary to avoid the plugins to be loaded multiple times
     // in each subproject's classloader
     alias(libs.plugins.androidApplication) apply false

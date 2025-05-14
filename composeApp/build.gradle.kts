@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.sqldelight)
+
+    // TODO: use libs.versions.toml
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 kotlin {
@@ -49,6 +53,9 @@ kotlin {
             implementation(libs.android.driver)
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.androidx.compose)
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.analytics)
+            implementation(libs.firebase.crashlytics)
         }
         iosMain.dependencies {
             implementation(libs.native.driver)
