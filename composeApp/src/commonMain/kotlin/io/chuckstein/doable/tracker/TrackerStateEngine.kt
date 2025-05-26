@@ -1,6 +1,7 @@
 package io.chuckstein.doable.tracker
 
 import co.touchlab.kermit.Logger
+import io.chuckstein.doable.common.AVG_DAYS_IN_MONTH
 import io.chuckstein.doable.common.asList
 import io.chuckstein.doable.common.avgNumDaysBetweenDates
 import io.chuckstein.doable.common.currentDateTime
@@ -152,7 +153,7 @@ class TrackerStateEngine(
                 TrackerDomainState(
                     isLoading = false,
                     error = null,
-                    tasks = dataSource.selectAllTasks().sortedWith(taskUrgencyComparator(currentPerceivedDay())),
+                    tasks = dataSource.selectAllTasks().sortedWith(taskUrgencyComparator(currentPerceivedDay())),  // TODO: how should comparator work on previous days?
                     focusedDay = currentPerceivedDay(),
                     trackedDays = currentPerceivedDay().previousDaysInclusive(numDaysTracked),
                 ).run {
@@ -267,10 +268,10 @@ class TrackerStateEngine(
 
     private suspend fun LocalDate.habitPerformedBothOfPast2Months(habitId: Long) =
         dataSource.selectNumTimesHabitPerformedDuringDates(
-            habitId, previousDaysInclusive(30)
+            habitId, previousDaysInclusive(AVG_DAYS_IN_MONTH)
         ) >= 1 &&
                 dataSource.selectNumTimesHabitPerformedDuringDates(
-                    habitId, minus(30, DAY).previousDaysInclusive(30)
+                    habitId, minus(AVG_DAYS_IN_MONTH, DAY).previousDaysInclusive(AVG_DAYS_IN_MONTH)
                 ) >= 1
 
     private suspend fun saveCurrentJournalEntry() {
@@ -378,6 +379,11 @@ class TrackerStateEngine(
                     trend = calculateHabitTrend(habit.id, date),
                     wasBuilding = habit.currentlyBuilding,
                     wasPerformed = habit.id in habitsPerformed,
+                    lastPerformed = dataSource.selectMostRecentDatesHabitPerformed(
+                        habitId = habit.id,
+                        numDates = 1,
+                        referenceDate = date
+                    ).firstOrNull(),
                     isNew = !dataSource.doesAnyHabitStatusExistForHabit(habit.id)
                 )
             }
@@ -390,6 +396,7 @@ class TrackerStateEngine(
                     trend = habitStatus.trend,
                     wasBuilding = habitStatus.wasBuilding,
                     wasPerformed = habitStatus.habitId in habitsPerformed,
+                    lastPerformed = habitStatus.lastPerformed,
                     isNew = false // TODO: need to disallow inserting habits while viewing past days, otherwise this could be true (and we would need to be able to retroactively create HabitStatuses, which would then have cascading effects on the HabitStatuses of past days for things like frequency)
                 )
             }
@@ -459,7 +466,7 @@ class TrackerStateEngine(
         return when (frequency) {
             HabitFrequency.Daily -> numDaysSinceHabitPerformed >= 1
             HabitFrequency.Weekly -> numDaysSinceHabitPerformed >= 7
-            HabitFrequency.Monthly -> numDaysSinceHabitPerformed >= 30
+            HabitFrequency.Monthly -> numDaysSinceHabitPerformed >= AVG_DAYS_IN_MONTH
             // TODO: consider upper limit for how long ago it was recently performed before we stop suggesting this one (otherwise remains until performed again)
             // TODO: if the standard deviation from avg is high % of avg (not enough of a clear pattern), then don't suggest this habit
             HabitFrequency.None -> recentDatesHabitPerformed.size >= 3 && numDaysSinceHabitPerformed >= avgNumDaysBetweenDates(recentDatesHabitPerformed)
@@ -651,6 +658,7 @@ class TrackerStateEngine(
                                 trend = HabitTrend.None,
                                 wasBuilding = false,
                                 wasPerformed = false,
+                                lastPerformed = null,
                                 isNew = true
                             )
                             copy(
@@ -843,6 +851,7 @@ class TrackerStateEngine(
                             trend = HabitTrend.None,
                             wasBuilding = false,
                             wasPerformed = false,
+                            lastPerformed = null, // TODO: support lastPerformed date for habits newly re-tracked
                             isNew = false
                         )
                     } else {

@@ -76,6 +76,7 @@ data class TrackedHabit(
     val trend: HabitTrend,
     val wasBuilding: Boolean,
     val wasPerformed: Boolean,
+    val lastPerformed: LocalDate?,
     val isNew: Boolean,
 )
 

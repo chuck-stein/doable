@@ -27,6 +27,9 @@ fun LocalDate.previousDaysInclusive(numDays: Int) = List(numDays) { index ->
     this.minus(numDays, DAY).plus(index + 1, DAY)
 }
 
+fun LocalDate.weeksUntil(other: LocalDate): Int = daysUntil(other) / 7
+fun LocalDate.monthsUntil(other: LocalDate): Int = daysUntil(other) / AVG_DAYS_IN_MONTH
+
 fun avgNumDaysBetweenDates(dates: List<LocalDate>) = dates
     .sorted()
     .zipWithNext { date1, date2 -> date1.daysUntil(date2) }
@@ -47,3 +50,5 @@ val shortDateFormatter = LocalDate.Format {
     chars("/")
     year()
 }
+
+const val AVG_DAYS_IN_MONTH = 30

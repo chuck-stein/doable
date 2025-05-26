@@ -1,5 +1,6 @@
 package io.chuckstein.doable.tracker
 
+import androidx.compose.ui.graphics.lerp
 import doable.composeapp.generated.resources.Res
 import doable.composeapp.generated.resources.deadline_label
 import doable.composeapp.generated.resources.delete_habit_cd
@@ -25,11 +26,16 @@ import doable.composeapp.generated.resources.hide_untracked_habits
 import doable.composeapp.generated.resources.high_priority
 import doable.composeapp.generated.resources.low_priority
 import doable.composeapp.generated.resources.medium_priority
+import doable.composeapp.generated.resources.n_days_ago
+import doable.composeapp.generated.resources.n_months_ago
+import doable.composeapp.generated.resources.n_weeks_ago
 import doable.composeapp.generated.resources.no_deadline
 import doable.composeapp.generated.resources.resume_tracking_habit_cd
 import doable.composeapp.generated.resources.show_older_tasks
 import doable.composeapp.generated.resources.show_untracked_habits
 import doable.composeapp.generated.resources.stop_tracking_habit_cd
+import doable.composeapp.generated.resources.yesterday
+import io.chuckstein.doable.common.AVG_DAYS_IN_MONTH
 import io.chuckstein.doable.common.ColorModel
 import io.chuckstein.doable.common.IconState
 import io.chuckstein.doable.common.Icons
@@ -38,12 +44,14 @@ import io.chuckstein.doable.common.isCompletedAsOf
 import io.chuckstein.doable.common.isDueThisWeekAsOf
 import io.chuckstein.doable.common.isOlderAsOf
 import io.chuckstein.doable.common.isOverdueAsOf
+import io.chuckstein.doable.common.monthsUntil
 import io.chuckstein.doable.common.nextDay
 import io.chuckstein.doable.common.previousDay
 import io.chuckstein.doable.common.shortDateFormatter
 import io.chuckstein.doable.common.toTextModel
 import io.chuckstein.doable.common.today
 import io.chuckstein.doable.common.wasOverdueButCompletedOn
+import io.chuckstein.doable.common.weeksUntil
 import io.chuckstein.doable.database.Task
 import io.chuckstein.doable.tracker.CheckableItemMetadataState.HabitMetadataState
 import io.chuckstein.doable.tracker.TrackerEvent.ClearHabitIdToFocus
@@ -74,6 +82,7 @@ import io.telereso.kmp.core.icons.resources.TrendingFlat
 import io.telereso.kmp.core.icons.resources.TrendingUp
 import io.telereso.kmp.core.icons.resources.Visibility
 import io.telereso.kmp.core.icons.resources.VisibilityOff
+import kotlinx.datetime.DateTimeUnit.Companion.DAY
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -81,6 +90,7 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.DayOfWeekNames
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.Padding
+import kotlinx.datetime.minus
 
 class TrackerStateMapper {
 
@@ -214,6 +224,7 @@ class TrackerStateMapper {
         journalHabits = journalHabitIds().map { habit ->
             habit.toCheckableItemState(
                 onJournalTab = true,
+                date = date,
                 endIcon = IconState(Icons.VisibilityOff, Res.string.hide_habit_cd.toTextModel())
                     .takeIf { !habit.wasPerformed },
                 endIconClickEvent = HideHabitFromJournal(habit.id)
@@ -232,6 +243,7 @@ class TrackerStateMapper {
     ) = HabitsTabState(
         trackedHabits = trackedHabits.map { habit ->
             habit.toCheckableItemState(
+                date = date,
                 endIcon = if (habit.isNew) {
                     IconState(Icons.Close, Res.string.delete_habit_cd.toTextModel())
                 } else {
@@ -339,36 +351,6 @@ class TrackerStateMapper {
         backspaceWhenEmptyEvent = DeleteTaskAndMoveFocus(id)
     )
 
-    private fun TrackedHabit.toCheckableItemState(
-        onJournalTab: Boolean = false,
-        endIcon: IconState?,
-        endIconClickEvent: TrackerEvent?,
-        habitIdToFocus: Long? = null,
-        backspaceWhenEmptyEvent: TrackerEvent? = null, // TODO: do I need this for tasks too?
-        checkable: Boolean
-    ) = CheckableItemState(
-        id = id,
-        checked = wasPerformed,
-        name = name.toTextModel(),
-        metadata = HabitMetadataState( // TODO: implement remaining metadata for habits
-            trendIcon = when (trend) {
-                HabitTrend.Up -> IconState(Icons.TrendingUp, contentDescription = Res.string.habit_trend_up_cd.toTextModel())
-                HabitTrend.Down -> IconState(Icons.TrendingDown, contentDescription = Res.string.habit_trend_down_cd.toTextModel())
-                HabitTrend.Neutral -> IconState(Icons.TrendingFlat, contentDescription = Res.string.habit_trend_neutral_cd.toTextModel())
-                HabitTrend.None -> null
-            },
-        ),
-        endIcon = endIcon,
-        autoFocus = id == habitIdToFocus,
-        updateNameEvent = { UpdateHabitName(id, it) },
-        toggleCheckedEvent = ToggleHabitPerformed(id).takeIf { checkable },
-        endIconClickEvent = endIconClickEvent,
-        loseFocusEvent = SaveCurrentHabitName(id),
-        autoFocusDoneEvent = ClearHabitIdToFocus,
-        nextActionEvent = InsertHabitAfter(id).takeUnless { onJournalTab },
-        backspaceWhenEmptyEvent = backspaceWhenEmptyEvent
-    )
-
     private fun Task.createTaskInfoText(date: LocalDate): TextModel? = when {
         isOlderAsOf(date) -> dateCompleted?.format(shortDateFormatter)?.toTextModel()
         deadline == date -> Res.string.due_today.toTextModel()
@@ -392,6 +374,57 @@ class TrackerStateMapper {
         Res.string.no_deadline.toTextModel()
     } else {
         TextModel.Resource(Res.string.deadline_label, deadline.format(shortDateFormatter))
+    }
+
+    private fun TrackedHabit.toCheckableItemState(
+        onJournalTab: Boolean = false,
+        date: LocalDate,
+        endIcon: IconState?,
+        endIconClickEvent: TrackerEvent?,
+        habitIdToFocus: Long? = null,
+        backspaceWhenEmptyEvent: TrackerEvent? = null, // TODO: do I need this for tasks too?
+        checkable: Boolean
+    ) = CheckableItemState(
+        id = id,
+        checked = wasPerformed,
+        name = name.toTextModel(),
+        infoText = createHabitInfoText(date),
+        infoTextColor = createHabitInfoTextColor(date),
+        metadata = HabitMetadataState( // TODO: implement remaining metadata for habits
+            trendIcon = when (trend) {
+                HabitTrend.Up -> IconState(Icons.TrendingUp, contentDescription = Res.string.habit_trend_up_cd.toTextModel())
+                HabitTrend.Down -> IconState(Icons.TrendingDown, contentDescription = Res.string.habit_trend_down_cd.toTextModel())
+                HabitTrend.Neutral -> IconState(Icons.TrendingFlat, contentDescription = Res.string.habit_trend_neutral_cd.toTextModel())
+                HabitTrend.None -> null
+            },
+        ),
+        endIcon = endIcon,
+        autoFocus = id == habitIdToFocus,
+        updateNameEvent = { UpdateHabitName(id, it) },
+        toggleCheckedEvent = ToggleHabitPerformed(id).takeIf { checkable },
+        endIconClickEvent = endIconClickEvent,
+        loseFocusEvent = SaveCurrentHabitName(id),
+        autoFocusDoneEvent = ClearHabitIdToFocus,
+        nextActionEvent = InsertHabitAfter(id).takeUnless { onJournalTab },
+        backspaceWhenEmptyEvent = backspaceWhenEmptyEvent
+    )
+
+    private fun TrackedHabit.createHabitInfoText(date: LocalDate): TextModel? = when {
+        lastPerformed == null || lastPerformed == date -> null
+        lastPerformed == date.previousDay() -> Res.string.yesterday.toTextModel()
+        lastPerformed > date.minus(7, DAY) -> {
+            TextModel.Plural(Res.plurals.n_days_ago, lastPerformed.daysUntil(date), lastPerformed.daysUntil(date))
+        }
+        lastPerformed > date.minus(AVG_DAYS_IN_MONTH, DAY) -> {
+            TextModel.Plural(Res.plurals.n_weeks_ago, lastPerformed.weeksUntil(date), lastPerformed.weeksUntil(date))
+        }
+        else -> TextModel.Plural(Res.plurals.n_months_ago, lastPerformed.monthsUntil(date), lastPerformed.monthsUntil(date))
+    }
+
+    private fun TrackedHabit.createHabitInfoTextColor(date: LocalDate): ColorModel {
+        val daysSinceLastPerformed = lastPerformed?.daysUntil(date) ?: return ColorModel.FromTheme { primary }
+        val dormancyFactor = daysSinceLastPerformed.coerceAtMost(AVG_DAYS_IN_MONTH) / AVG_DAYS_IN_MONTH.toFloat()
+        return ColorModel.FromTheme { lerp(primary, secondary, dormancyFactor) }
     }
 
     private fun createVisibilityToggleIcon(isVisible: Boolean) = if (isVisible) {

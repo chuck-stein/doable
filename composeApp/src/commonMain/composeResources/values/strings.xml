@@ -53,6 +53,19 @@
     <string name="habit_trend_down_cd">habit trending down</string>
     <string name="habit_trend_neutral_cd">habit trending flat</string>
     <string name="no_tracked_habits_message">No habits tracked today.</string>
+    <plurals name="n_days_ago">
+        <item quantity="one">%1$d DAY AGO</item>
+        <item quantity="other">%1$d DAYS AGO</item>
+    </plurals>
+    <plurals name="n_weeks_ago">
+        <item quantity="one">%1$d WEEK AGO</item>
+        <item quantity="other">%1$d WEEKS AGO</item>
+    </plurals>
+    <plurals name="n_months_ago">
+        <item quantity="one">%1$d MONTH AGO</item>
+        <item quantity="other">%1$d MONTHS AGO</item>
+    </plurals>
+    <string name="yesterday">YESTERDAY</string>
     <string name="show_untracked_habits">SHOW UNTRACKED HABITS</string>
     <string name="hide_untracked_habits">HIDE UNTRACKED HABITS</string>
 
