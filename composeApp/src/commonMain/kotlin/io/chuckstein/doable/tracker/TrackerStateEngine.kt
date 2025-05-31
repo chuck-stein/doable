@@ -379,11 +379,7 @@ class TrackerStateEngine(
                     trend = calculateHabitTrend(habit.id, date),
                     wasBuilding = habit.currentlyBuilding,
                     wasPerformed = habit.id in habitsPerformed,
-                    lastPerformed = dataSource.selectMostRecentDatesHabitPerformed(
-                        habitId = habit.id,
-                        numDates = 1,
-                        referenceDate = date
-                    ).firstOrNull(),
+                    lastPerformed = dataSource.selectHabitLastPerformed(habit.id, date),
                     isNew = !dataSource.doesAnyHabitStatusExistForHabit(habit.id)
                 )
             }
@@ -726,7 +722,10 @@ class TrackerStateEngine(
                 copy(
                     trackedHabits = trackedHabits.map { habit ->
                         if (habit.id == id) {
-                            habit.copy(wasPerformed = habitIsNowPerformed)
+                            habit.copy(
+                                wasPerformed = habitIsNowPerformed,
+                                lastPerformed = if (habitIsNowPerformed) currentDomainState.focusedDay else habit.lastPerformed,
+                            )
                         } else {
                             habit
                         }
@@ -764,6 +763,7 @@ class TrackerStateEngine(
                                 habit.copy(
                                     trend = calculateHabitTrend(habit.id, focusedDay),
                                     frequency = calculateHabitFrequency(habit.id, focusedDay),
+                                    lastPerformed = dataSource.selectHabitLastPerformed(habit.id, currentDomainState.focusedDay)
                                 )
                             } else {
                                 habit
@@ -880,6 +880,15 @@ class TrackerStateEngine(
             it.updateFocusedDayDetails { copy(viewingUntrackedHabits = !viewingUntrackedHabits) }
         }
     }
+
+    private suspend fun DoableDataSource.selectHabitLastPerformed(
+        habitId: Long,
+        date: LocalDate
+    ) = selectMostRecentDatesHabitPerformed(
+        habitId = habitId,
+        numDates = 1,
+        referenceDate = date
+    ).firstOrNull()
 
     private inline fun TrackerDomainState.updateFocusedDayDetails(update: DayDetails.() -> DayDetails) = copy(
         dayDetailsMap = dayDetailsMap + (focusedDay to focusedDayDetails.update())
