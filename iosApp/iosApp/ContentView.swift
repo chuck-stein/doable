@@ -4,13 +4,10 @@ import ComposeApp
 
 struct ComposeView: UIViewControllerRepresentable {
     
-    let viewModel: TrackerViewModel
+    private let stateEngine: TrackerStateEngine = KoinHelper().stateEngine
     
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController(
-            stateEngine: viewModel.stateEngine,
-            scope: viewModel.viewModelScope
-        )
+        MainViewControllerKt.MainViewController(stateEngine: stateEngine)
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
@@ -18,11 +15,8 @@ struct ComposeView: UIViewControllerRepresentable {
 
 struct ContentView: View {
     
-    @StateObject private var viewModel = TrackerViewModel()
-    
     var body: some View {
-        ComposeView(viewModel: viewModel)
-                .ignoresSafeArea(.keyboard) // Compose has own keyboard handler
+        ComposeView().ignoresSafeArea(.keyboard) // Compose has own keyboard handler
     }
 }
 

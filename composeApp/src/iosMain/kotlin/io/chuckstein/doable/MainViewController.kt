@@ -1,15 +1,21 @@
 package io.chuckstein.doable
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.window.ComposeUIViewController
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.chuckstein.doable.tracker.TrackerEvent.InitializeTracker
 import io.chuckstein.doable.tracker.TrackerScreen
 import io.chuckstein.doable.tracker.TrackerStateEngine
-import kotlinx.coroutines.CoroutineScope
 
-fun MainViewController(stateEngine: TrackerStateEngine, scope: CoroutineScope) = ComposeUIViewController {
+fun MainViewController(stateEngine: TrackerStateEngine) = ComposeUIViewController {
+    val scope = rememberCoroutineScope()
+    val uiState by stateEngine.uiStateFlow(scope).collectAsState()
 
-    val uiState by stateEngine.uiStateFlow(scope).collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        stateEngine.processEvent(InitializeTracker, scope)
+    }
 
     TrackerScreen(uiState) { event ->
         stateEngine.processEvent(event, scope)

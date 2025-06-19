@@ -89,18 +89,10 @@ class TrackerStateEngine(
     private val currentDomainState: TrackerDomainState
         get() = domainStateFlow.value
 
-    fun currentUiState() = trackerStateMapper.mapToUiState(currentDomainState)
-
     fun uiStateFlow(scope: CoroutineScope) =
         domainStateFlow.map { trackerStateMapper.mapToUiState(it) }
             .onEach { Logger.d { "ui state: $it" } }
             .stateIn(scope, SharingStarted.Eagerly, TrackerUiState())
-
-    fun onUiStateChange(scope: CoroutineScope, onChange: (TrackerUiState) -> Unit) {
-        scope.launch {
-            uiStateFlow(scope).collectLatest { onChange(it) }
-        }
-    }
 
     fun processEvent(event: TrackerEvent, scope: CoroutineScope) {
         when (event) {
