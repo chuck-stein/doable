@@ -1,0 +1,18 @@
+import io.chuckstein.doable.tracker.Mood;
+import kotlin.Boolean;
+import kotlinx.datetime.LocalDate;
+
+CREATE TABLE JournalEntry_new (
+  date TEXT AS LocalDate NOT NULL PRIMARY KEY,
+  note TEXT NOT NULL DEFAULT '',
+  mood INTEGER AS Mood DEFAULT NULL,
+  isStarred INTEGER AS Boolean NOT NULL DEFAULT 0,
+  habitsCalculated INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+INSERT INTO JournalEntry_new (date, note, mood, isStarred, habitsCalculated)
+SELECT date, note, NULL, isStarred, habitsCalculated FROM JournalEntry;
+
+DROP TABLE JournalEntry;
+
+ALTER TABLE JournalEntry_new RENAME TO JournalEntry;

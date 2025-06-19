@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -44,7 +46,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -91,6 +96,7 @@ import doable.composeapp.generated.resources.high_priority
 import doable.composeapp.generated.resources.journal
 import doable.composeapp.generated.resources.low_priority
 import doable.composeapp.generated.resources.medium_priority
+import doable.composeapp.generated.resources.mood_title
 import doable.composeapp.generated.resources.next_day_cd
 import doable.composeapp.generated.resources.no_deadline
 import doable.composeapp.generated.resources.no_tracked_habits_message
@@ -119,6 +125,7 @@ import io.chuckstein.doable.tracker.CheckableItemOptionsState.HabitOptionsState
 import io.chuckstein.doable.tracker.CheckableItemOptionsState.TaskOptionsState
 import io.chuckstein.doable.tracker.TrackerEvent.AddTask
 import io.chuckstein.doable.tracker.TrackerEvent.AddTrackedHabit
+import io.chuckstein.doable.tracker.TrackerEvent.SetMood
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskDeadline
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskPriority
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleSelectingDate
@@ -414,6 +421,15 @@ private fun JournalTab(state: JournalTabState, onEvent: (TrackerEvent) -> Unit) 
     val lastListIndex = state.journalTasks.size + state.journalHabits.size
 
     LazyColumn(Modifier.fillMaxSize(), listState) {
+        item {
+            MoodButtons(
+                selectedMoodIndex = state.selectedMoodIndex,
+                modifier = Modifier
+                    .padding(horizontal = 12.dp)
+                    .padding(top = 8.dp, bottom = 12.dp),
+                onEvent = onEvent
+            )
+        }
         items(state.journalTasks, key = { it.id }) { task ->
             CheckableItem(task, Modifier.animateItem(), onEvent)
         }
@@ -512,6 +528,39 @@ private fun HabitsTab(state: HabitsTabState, onEvent: (TrackerEvent) -> Unit) {
         items(state.untrackedHabits, key = { it.id }) { habit ->
             // TODO: when one first appears (due to habits becoming toggled), scroll to it... could maybe do this with a pending one-off-event structure in the domain state when handling ToggleViewingUntrackedHabits, but also might be simpler if there's a way to keep it in the view layer
             CheckableItem(habit, Modifier.animateItem(), onEvent)
+        }
+    }
+}
+
+@Composable
+private fun MoodButtons(selectedMoodIndex: Int?, modifier: Modifier = Modifier, onEvent: (TrackerEvent) -> Unit) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = stringResource(Res.string.mood_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(Modifier.height(6.dp))
+        SingleChoiceSegmentedButtonRow(
+            Modifier
+                .align(Alignment.CenterHorizontally)
+                .height(36.dp)
+        ) {
+            Mood.entries.forEachIndexed { index, mood ->
+                val selected = index == selectedMoodIndex
+                SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = Mood.entries.size),
+                    colors = SegmentedButtonDefaults.colors().copy(
+                        activeContainerColor = mood.containerColor.resolve(),
+                        activeBorderColor = mood.color.resolve()
+                    ),
+                    icon = {},
+                    onClick = { onEvent(SetMood(mood.takeUnless { selected })) },
+                    selected = selected
+                ) {
+                    Text(stringResource(mood.stringRes))
+                }
+            }
         }
     }
 }

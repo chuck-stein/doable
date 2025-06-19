@@ -209,6 +209,7 @@ class TrackerStateMapper {
     ) = JournalTabState(
         note = journalEntry.note.toTextModel(),
         isStarred = journalEntry.isStarred,
+        selectedMoodIndex = journalEntry.mood?.ordinal,
         journalTasks = journalTaskIds(allTasks).map { task ->
             task.toCheckableItemState(
                 onJournalTab = true,

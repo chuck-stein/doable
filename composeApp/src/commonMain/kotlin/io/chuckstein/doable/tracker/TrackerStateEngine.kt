@@ -39,6 +39,7 @@ import io.chuckstein.doable.tracker.TrackerEvent.InsertTaskAfter
 import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentHabitName
 import io.chuckstein.doable.tracker.TrackerEvent.SaveCurrentTaskName
 import io.chuckstein.doable.tracker.TrackerEvent.SavePendingChanges
+import io.chuckstein.doable.tracker.TrackerEvent.SetMood
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleBuildingHabit
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTask
 import io.chuckstein.doable.tracker.TrackerEvent.ToggleEditingTaskDeadline
@@ -102,6 +103,7 @@ class TrackerStateEngine(
 
             is UpdateJournalNote -> updateJournalNote(event.note)
             is ToggleJournalEntryStarred -> TODO()
+            is SetMood -> scope.launch { setMood(event.mood) }
             is HideTaskFromJournal -> hideTaskFromJournal(event.id)
             is HideHabitFromJournal -> hideHabitFromJournal(event.id)
 
@@ -285,6 +287,13 @@ class TrackerStateEngine(
         domainStateFlow.update { state ->
             state.updateFocusedDayDetails { copy(journalEntry = journalEntry.copy(note = note)) }
         }
+    }
+
+    private suspend fun setMood(mood: Mood?) {
+        domainStateFlow.update { state ->
+            state.updateFocusedDayDetails { copy(journalEntry = journalEntry.copy(mood = mood)) }
+        }
+        saveCurrentJournalEntry()
     }
 
     private fun hideTaskFromJournal(id: Long) {

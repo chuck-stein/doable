@@ -3,6 +3,7 @@ import kotlinx.datetime.LocalDate;
 import kotlinx.datetime.DayOfWeek;
 import io.chuckstein.doable.tracker.HabitFrequency;
 import io.chuckstein.doable.tracker.HabitTrend;
+import io.chuckstein.doable.tracker.Mood;
 import io.chuckstein.doable.tracker.TaskPriority;
 
 selectLastInsertRowId:
@@ -13,6 +14,7 @@ SELECT last_insert_rowid();
 CREATE TABLE JournalEntry (
   date TEXT AS LocalDate NOT NULL PRIMARY KEY,
   note TEXT NOT NULL DEFAULT '',
+  mood INTEGER AS Mood DEFAULT NULL,
   isStarred INTEGER AS Boolean NOT NULL DEFAULT 0,
   habitsCalculated INTEGER AS Boolean NOT NULL DEFAULT 0
 );
@@ -23,7 +25,7 @@ VALUES (:date);
 
 updateJournalEntry:
 UPDATE JournalEntry
-SET note =:note, isStarred =:starred, habitsCalculated =:habitsCalculated
+SET note =:note, mood =:mood, isStarred =:starred, habitsCalculated =:habitsCalculated
 WHERE date =:date;
 
 setJournalEntryHabitsCalculatedTrue:

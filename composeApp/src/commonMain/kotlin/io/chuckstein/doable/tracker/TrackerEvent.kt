@@ -26,6 +26,7 @@ sealed interface TrackerEvent {
 
     data class UpdateJournalNote(val note: String) : TrackerEvent
     data object ToggleJournalEntryStarred : TrackerEvent
+    data class SetMood(val mood: Mood?) : TrackerEvent
     data class HideTaskFromJournal(val id: Long): TrackerEvent
     data class HideHabitFromJournal(val id: Long): TrackerEvent
 

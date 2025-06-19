@@ -1,14 +1,22 @@
 package io.chuckstein.doable.tracker
 
+import androidx.compose.ui.graphics.lerp
 import doable.composeapp.generated.resources.Res
+import doable.composeapp.generated.resources.amazing
+import doable.composeapp.generated.resources.bad
 import doable.composeapp.generated.resources.failed_to_load_error
 import doable.composeapp.generated.resources.failed_to_save_error
+import doable.composeapp.generated.resources.good
+import doable.composeapp.generated.resources.neutral
+import doable.composeapp.generated.resources.terrible
+import io.chuckstein.doable.common.ColorModel
 import io.chuckstein.doable.common.today
 import io.chuckstein.doable.database.Habit
 import io.chuckstein.doable.database.JournalEntry
 import io.chuckstein.doable.database.Task
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.StringResource
+import kotlin.math.pow
 
 data class TrackerDomainState(
     val trackedDays: List<LocalDate> = emptyList(),
@@ -57,7 +65,8 @@ data class DayDetails(
                 date = LocalDate.fromEpochDays(0),
                 note = "",
                 isStarred = false,
-                habitsCalculated = false
+                habitsCalculated = false,
+                mood = null
             ),
             error = TrackerError.FailedToLoad,
         )
@@ -90,6 +99,30 @@ enum class HabitTrend(val serializedName: String) {
 
 enum class TaskPriority(val serializedName: String) {
     Low("LOW"), Medium("MEDIUM"), High("HIGH")
+}
+
+enum class Mood(val positivityScore: Long, val stringRes: StringResource) {
+    Terrible(1, Res.string.terrible),
+    Bad(2, Res.string.bad),
+    Neutral(3, Res.string.neutral),
+    Good(4, Res.string.good),
+    Amazing(5, Res.string.amazing);
+
+    private val colorBias = 0.5
+
+    private val positivityPercent by lazy {
+        val minPositivityScore = entries.minOf { it.positivityScore }
+        val maxPositivityScore = entries.maxOf { it.positivityScore }
+        val positivityScoreRange = maxPositivityScore - minPositivityScore
+        (positivityScore - minPositivityScore).toDouble() / positivityScoreRange.toDouble()
+    }
+
+    private val colorLerpAmount by lazy {
+        positivityPercent.pow(colorBias).toFloat()
+    }
+
+    val color = ColorModel.FromTheme { lerp(error, primary, colorLerpAmount) }
+    val containerColor = ColorModel.FromTheme { lerp(errorContainer, primaryContainer, colorLerpAmount) }
 }
 
 data class TaskEditingState(

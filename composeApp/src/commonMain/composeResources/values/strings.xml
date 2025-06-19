@@ -43,6 +43,12 @@
     <string name="what_did_you_do_today">What did you do today?</string>
     <string name="hide_task_cd">hide task</string>
     <string name="hide_habit_cd">hide habit</string>
+    <string name="mood_title">How are you feeling today?</string>
+    <string name="terrible">Terrible</string>
+    <string name="bad">Bad</string>
+    <string name="neutral">Neutral</string>
+    <string name="good">Good</string>
+    <string name="amazing">Amazing</string>
 
     <!-- Habits Tab -->
     <string name="add_habit">Add habit</string>

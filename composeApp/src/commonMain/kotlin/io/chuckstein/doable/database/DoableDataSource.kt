@@ -5,6 +5,7 @@ import io.chuckstein.doable.database.adapters.dayOfWeekAdapter
 import io.chuckstein.doable.database.adapters.habitFrequencyAdapter
 import io.chuckstein.doable.database.adapters.habitTrendAdapter
 import io.chuckstein.doable.database.adapters.localDateAdapter
+import io.chuckstein.doable.database.adapters.moodAdapter
 import io.chuckstein.doable.database.adapters.taskPriorityAdapter
 import io.chuckstein.doable.tracker.TaskPriority
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,7 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
 
     private val database = DoableDatabase(
         driver = databaseDriverFactory.createDriver(),
-        JournalEntryAdapter = JournalEntry.Adapter(dateAdapter = localDateAdapter),
+        JournalEntryAdapter = JournalEntry.Adapter(dateAdapter = localDateAdapter, moodAdapter = moodAdapter),
         TaskAdapter = Task.Adapter(
             dateCreatedAdapter = localDateAdapter,
             dateCompletedAdapter = localDateAdapter,
@@ -50,7 +51,8 @@ class DoableDataSource(databaseDriverFactory: DatabaseDriverFactory) {
 
     suspend fun updateJournalEntry(journalEntry: JournalEntry) = runQuery("update journal entry - $journalEntry") {
         queries.updateJournalEntry(
-            journalEntry.note, journalEntry.isStarred, journalEntry.habitsCalculated, journalEntry.date
+            journalEntry.note, journalEntry.mood, journalEntry.isStarred,
+            journalEntry.habitsCalculated, journalEntry.date
         )
     }
 

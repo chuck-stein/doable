@@ -46,6 +46,7 @@ data class TasksTabState(
 data class JournalTabState(
     val note: TextModel = TextModel.empty,
     val isStarred: Boolean = false,
+    val selectedMoodIndex: Int? = null,
     val journalTasks: List<CheckableItemState> = emptyList(),
     val journalHabits: List<CheckableItemState> = emptyList(),
 )
