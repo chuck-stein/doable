@@ -89,10 +89,18 @@ class TrackerStateEngine(
     private val currentDomainState: TrackerDomainState
         get() = domainStateFlow.value
 
-    fun collectUiState(scope: CoroutineScope) =
+    fun currentUiState() = trackerStateMapper.mapToUiState(currentDomainState)
+
+    fun uiStateFlow(scope: CoroutineScope) =
         domainStateFlow.map { trackerStateMapper.mapToUiState(it) }
             .onEach { Logger.d { "ui state: $it" } }
             .stateIn(scope, SharingStarted.Eagerly, TrackerUiState())
+
+    fun onUiStateChange(scope: CoroutineScope, onChange: (TrackerUiState) -> Unit) {
+        scope.launch {
+            uiStateFlow(scope).collectLatest { onChange(it) }
+        }
+    }
 
     fun processEvent(event: TrackerEvent, scope: CoroutineScope) {
         when (event) {
@@ -464,7 +472,7 @@ class TrackerStateEngine(
             .filterNot { it == date.dayOfWeek }
             .map { calculateRecentDayOfWeekPropensity(MEDIUM_TERM_HABIT_PROPENSITY_NUM_DAYS, date, dayOfWeek = it) }
         val isOnlyDayOfWeekPerformed = mediumTermDayOfWeekPropensity > 0.3 && otherDaysOfWeekMediumTermPropensity.all { it == 0.0 }
-        if (isOnlyDayOfWeekPerformed) return true
+        if (isOnlyDayOfWeekPerformed) return true // TODO: fix "practice mindfulness" being suggested on 5/12/25 from this criteria
 
         val recentDatesHabitPerformed = dataSource.selectMostRecentDatesHabitPerformed(id, numDates = 3, referenceDate = date)
         val numDaysSinceHabitPerformed = recentDatesHabitPerformed.firstOrNull()?.daysUntil(date) ?: Int.MAX_VALUE

@@ -10,7 +10,7 @@ class TrackerViewModel(private val stateEngine: TrackerStateEngine) : ViewModel(
         processEvent(InitializeTracker)
     }
 
-    val uiState = stateEngine.collectUiState(viewModelScope)
+    val uiState = stateEngine.uiStateFlow(viewModelScope)
 
     fun processEvent(event: TrackerEvent) {
         stateEngine.processEvent(event, viewModelScope)
